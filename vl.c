@@ -264,7 +264,7 @@ static NotifierList exit_notifiers =
 static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
-static bool tcg_allowed = true;
+bool tcg_allowed;
 bool xen_allowed;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
@@ -2613,8 +2613,21 @@ static QEMUMachine *machine_parse(const char *name)
 
 static int tcg_init(void)
 {
+#ifdef CONFIG_TCG
     tcg_exec_init(tcg_tb_size * 1024 * 1024);
     return 0;
+#else
+    abort();
+#endif
+}
+
+int tcg_available(void)
+{
+#ifdef CONFIG_TCG
+    return 1;
+#else
+    return 0;
+#endif
 }
 
 static struct {

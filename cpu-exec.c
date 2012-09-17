@@ -227,6 +227,8 @@ int cpu_exec(CPUArchState *env)
     uint8_t *tc_ptr;
     uintptr_t next_tb;
 
+    assert(tcg_enabled());
+
     if (cpu->halted) {
         if (!cpu_has_work(cpu)) {
             return EXCP_HALTED;

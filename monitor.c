@@ -1114,10 +1114,12 @@ static void do_info_registers(Monitor *mon, const QDict *qdict)
     cpu_dump_state(cpu, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
 }
 
+#ifdef CONFIG_TCG
 static void do_info_jit(Monitor *mon, const QDict *qdict)
 {
     dump_exec_info((FILE *)mon, monitor_fprintf);
 }
+#endif
 
 static void do_info_history(Monitor *mon, const QDict *qdict)
 {
@@ -2756,6 +2758,7 @@ static mon_cmd_t info_cmds[] = {
         .help       = "show memory tree",
         .mhandler.cmd = do_info_mtree,
     },
+#if defined(CONFIG_TCG)
     {
         .name       = "jit",
         .args_type  = "",
@@ -2763,6 +2766,7 @@ static mon_cmd_t info_cmds[] = {
         .help       = "show dynamic compiler info",
         .mhandler.cmd = do_info_jit,
     },
+#endif
     {
         .name       = "kvm",
         .args_type  = "",

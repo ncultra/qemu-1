@@ -656,6 +656,7 @@ static void *buffered_file_thread(void *opaque)
     MigrationState *s = opaque;
     int64_t initial_time = qemu_get_clock_ms(rt_clock);
     int64_t max_size = 0;
+    bool first_time = true;
     bool last_round = false;
     int ret;
     uint64_t pending_size;
@@ -693,8 +694,8 @@ static void *buffered_file_thread(void *opaque)
 
         DPRINTF("notifying client\n");
         qemu_mutex_lock_iothread();
-        if (s->first_time) {
-            s->first_time = false;
+        if (first_time) {
+            first_time = false;
             DPRINTF("beginning savevm\n");
             ret = qemu_savevm_state_begin(s->file, &s->params);
             if (ret < 0) {
@@ -760,8 +761,6 @@ void migrate_fd_connect(MigrationState *s)
     s->buffer = NULL;
     s->buffer_size = 0;
     s->buffer_capacity = 0;
-
-    s->first_time = true;
 
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
     s->complete = false;

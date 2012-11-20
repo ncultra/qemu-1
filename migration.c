@@ -701,7 +701,6 @@ static void *buffered_file_thread(void *opaque)
         }
 
         DPRINTF("notifying client\n");
-        qemu_mutex_lock_iothread();
 
         DPRINTF("iterate\n");
         pending_size = qemu_savevm_state_pending(s->file, max_size);
@@ -710,6 +709,7 @@ static void *buffered_file_thread(void *opaque)
             qemu_savevm_state_iterate(s->file);
         } else {
             DPRINTF("done iterating\n");
+            qemu_mutex_lock_iothread();
             qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
             old_vm_running = runstate_is_running();
             start_time = qemu_get_clock_ms(rt_clock);
@@ -717,8 +717,8 @@ static void *buffered_file_thread(void *opaque)
             s->xfer_limit = INT_MAX;
             qemu_savevm_state_complete(s->file);
             last_round = true;
+            qemu_mutex_unlock_iothread();
         }
-        qemu_mutex_unlock_iothread();
     }
 
     qemu_mutex_lock_iothread();

@@ -523,16 +523,10 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     set_dirty_tracking(1);
 
     ret = flush_blks(f);
-    if (ret) {
-        blk_mig_cleanup();
-        return ret;
-    }
-
     blk_mig_reset_dirty_cursor();
-
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
-    return 0;
+    return ret;
 }
 
 static int block_save_iterate(QEMUFile *f, void *opaque)

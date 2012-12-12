@@ -1548,8 +1548,8 @@ bool qemu_savevm_state_blocked(Error **errp)
     return false;
 }
 
-int qemu_savevm_state_begin(QEMUFile *f,
-                            const MigrationParams *params)
+void qemu_savevm_state_begin(QEMUFile *f,
+                             const MigrationParams *params)
 {
     SaveStateEntry *se;
     int ret;
@@ -1589,11 +1589,10 @@ int qemu_savevm_state_begin(QEMUFile *f,
 
         ret = se->ops->save_live_setup(f, se->opaque);
         if (ret < 0) {
-            return ret;
+            qemu_file_set_error(f, ret);
+            break;
         }
     }
-    ret = qemu_file_get_error(f);
-    return ret;
 }
 
 /*
@@ -1627,6 +1626,9 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         ret = se->ops->save_live_iterate(f, se->opaque);
         trace_savevm_section_end(se->section_id);
 
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
         if (ret <= 0) {
             /* Do not proceed to the next vmstate before this one reported
                completion of the current stage. This serializes the migration
@@ -1635,14 +1637,10 @@ int qemu_savevm_state_iterate(QEMUFile *f)
             break;
         }
     }
-    if (ret != 0) {
-        return ret;
-    }
-    ret = qemu_file_get_error(f);
     return ret;
 }
 
-int qemu_savevm_state_complete(QEMUFile *f)
+void qemu_savevm_state_complete(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret;
@@ -1666,7 +1664,8 @@ int qemu_savevm_state_complete(QEMUFile *f)
         ret = se->ops->save_live_complete(f, se->opaque);
         trace_savevm_section_end(se->section_id);
         if (ret < 0) {
-            return ret;
+            qemu_file_set_error(f, ret);
+            return;
         }
     }
 
@@ -1694,8 +1693,6 @@ int qemu_savevm_state_complete(QEMUFile *f)
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
-
-    return qemu_file_get_error(f);
 }
 
 uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size)
@@ -1740,26 +1737,21 @@ static int qemu_savevm_state(QEMUFile *f)
         return -EINVAL;
     }
 
-    ret = qemu_savevm_state_begin(f, &params);
-    if (ret < 0)
-        goto out;
+    qemu_savevm_state_begin(f, &params);
+    while (qemu_file_get_error(f) == 0) {
+        if (qemu_savevm_state_iterate(f) > 0) {
+            break;
+        }
+    }
 
-    do {
-        ret = qemu_savevm_state_iterate(f);
-        if (ret < 0)
-            goto out;
-    } while (ret == 0);
-
-    ret = qemu_savevm_state_complete(f);
-
-out:
+    ret = qemu_file_get_error(f);
     if (ret == 0) {
+        qemu_savevm_state_complete(f);
         ret = qemu_file_get_error(f);
     }
     if (ret != 0) {
         qemu_savevm_state_cancel();
     }
-
     return ret;
 }
 

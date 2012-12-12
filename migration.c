@@ -276,7 +276,7 @@ static void migrate_fd_cleanup(void *opaque)
     s->cleanup_bh = NULL;
 
     if (s->state == MIG_STATE_CANCELLED) {
-        qemu_savevm_state_cancel(s->file);
+        qemu_savevm_state_cancel();
     }
 
     if (s->file) {

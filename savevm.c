@@ -1589,17 +1589,11 @@ int qemu_savevm_state_begin(QEMUFile *f,
 
         ret = se->ops->save_live_setup(f, se->opaque);
         if (ret < 0) {
-            qemu_savevm_state_cancel();
             return ret;
         }
     }
     ret = qemu_file_get_error(f);
-    if (ret != 0) {
-        qemu_savevm_state_cancel();
-    }
-
     return ret;
-
 }
 
 /*
@@ -1645,9 +1639,6 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         return ret;
     }
     ret = qemu_file_get_error(f);
-    if (ret != 0) {
-        qemu_savevm_state_cancel();
-    }
     return ret;
 }
 
@@ -1746,8 +1737,7 @@ static int qemu_savevm_state(QEMUFile *f)
     };
 
     if (qemu_savevm_state_blocked(NULL)) {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     ret = qemu_savevm_state_begin(f, &params);
@@ -1765,6 +1755,9 @@ static int qemu_savevm_state(QEMUFile *f)
 out:
     if (ret == 0) {
         ret = qemu_file_get_error(f);
+    }
+    if (ret != 0) {
+        qemu_savevm_state_cancel();
     }
 
     return ret;

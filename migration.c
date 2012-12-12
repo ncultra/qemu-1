@@ -275,10 +275,6 @@ static void migrate_fd_cleanup(void *opaque)
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
-    if (s->state == MIG_STATE_CANCELLED) {
-        qemu_savevm_state_cancel();
-    }
-
     if (s->file) {
         DPRINTF("closing file\n");
         qemu_fclose(s->file);
@@ -287,6 +283,11 @@ static void migrate_fd_cleanup(void *opaque)
 
     assert(s->fd == -1);
     assert(s->state != MIG_STATE_ACTIVE);
+
+    if (s->state != MIG_STATE_COMPLETED) {
+        qemu_savevm_state_cancel();
+    }
+
     notifier_list_notify(&migration_state_notifiers, s);
 }
 

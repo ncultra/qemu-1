@@ -753,19 +753,15 @@ static void *buffered_file_thread(void *opaque)
             s->bytes_xfer = 0;
             initial_time = current_time;
         }
-        if (!last_round && (s->bytes_xfer >= s->xfer_limit)) {
+        buffered_flush(s);
+        if (!last_round && qemu_file_rate_limit(s->file)) {
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
-        }
-        if (buffered_flush(s) < 0) {
-            break;
+            continue;
         }
 
-        DPRINTF("file is ready\n");
-        if (s->bytes_xfer < s->xfer_limit) {
-            DPRINTF("notifying client\n");
-            last_round = migrate_fd_put_ready(s, max_size);
-        }
+        DPRINTF("notifying client\n");
+        last_round = migrate_fd_put_ready(s, max_size);
     }
 
     g_free(s->buffer);

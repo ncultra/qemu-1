@@ -665,14 +665,9 @@ static void *buffered_file_thread(void *opaque)
     qemu_mutex_lock_iothread();
     DPRINTF("beginning savevm\n");
     ret = qemu_savevm_state_begin(s->file, &s->params);
-    if (ret < 0) {
-        DPRINTF("failed, %d\n", ret);
-        qemu_mutex_unlock_iothread();
-        goto out;
-    }
     qemu_mutex_unlock_iothread();
 
-    while (true) {
+    while (ret >= 0) {
         int64_t current_time = qemu_get_clock_ms(rt_clock);
         uint64_t pending_size;
 
@@ -745,12 +740,8 @@ static void *buffered_file_thread(void *opaque)
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
         ret = buffered_flush(s);
-        if (ret < 0) {
-            break;
-        }
     }
 
-out:
     if (ret < 0) {
         migrate_fd_error(s);
     }

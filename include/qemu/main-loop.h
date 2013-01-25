@@ -274,10 +274,13 @@ int qemu_add_child_watch(pid_t pid);
  * qemu_bh_new(), qemu_set_fd_handler() and basically all other
  * functions documented in this file.
  *
+ * If the mutex was already taken, the function returns true.  Do not
+ * call qemu_mutex_unlock_iothread in that case.
+ *
  * NOTE: tools currently are single-threaded and qemu_mutex_lock_iothread
  * is a no-op there.
  */
-void qemu_mutex_lock_iothread(void);
+bool qemu_mutex_lock_iothread(void);
 
 /**
  * qemu_mutex_unlock_iothread: Unlock the main loop mutex.

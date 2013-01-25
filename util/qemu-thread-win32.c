@@ -50,6 +50,16 @@ void qemu_mutex_lock(QemuMutex *mutex)
     mutex->owner = GetCurrentThreadId();
 }
 
+bool qemu_mutex_lock_recursive(QemuMutex *mutex)
+{
+    EnterCriticalSection(&mutex->lock);
+    if (mutex->owner == GetCurrentThreadId()) {
+        return true;
+    }
+    mutex->owner = GetCurrentThreadId();
+    return false;
+}
+
 int qemu_mutex_trylock(QemuMutex *mutex)
 {
     int owned;

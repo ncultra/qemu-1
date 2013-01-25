@@ -903,19 +903,23 @@ static bool qemu_in_vcpu_thread(void)
     return cpu_single_env && qemu_cpu_is_self(ENV_GET_CPU(cpu_single_env));
 }
 
-void qemu_mutex_lock_iothread(void)
+bool qemu_mutex_lock_iothread(void)
 {
+    bool recursive = false;
+
     if (!tcg_enabled()) {
-        qemu_mutex_lock(&qemu_global_mutex);
+        recursive = qemu_mutex_lock_recursive(&qemu_global_mutex);
     } else {
         iothread_requesting_mutex = true;
         if (qemu_mutex_trylock(&qemu_global_mutex)) {
             qemu_cpu_kick_thread(ENV_GET_CPU(first_cpu));
-            qemu_mutex_lock(&qemu_global_mutex);
+            recursive = qemu_mutex_lock_recursive(&qemu_global_mutex);
         }
         iothread_requesting_mutex = false;
         qemu_cond_broadcast(&qemu_io_proceeded_cond);
     }
+
+    return recursive;
 }
 
 void qemu_mutex_unlock_iothread(void)

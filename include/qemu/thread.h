@@ -23,6 +23,7 @@ void qemu_mutex_destroy(QemuMutex *mutex);
 void qemu_mutex_lock(QemuMutex *mutex);
 int qemu_mutex_trylock(QemuMutex *mutex);
 void qemu_mutex_unlock(QemuMutex *mutex);
+bool qemu_mutex_lock_recursive(QemuMutex *mutex);
 
 #define rcu_read_lock() do { } while (0)
 #define rcu_read_unlock() do { } while (0)

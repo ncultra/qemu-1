@@ -644,6 +644,10 @@ static void *migration_thread(void *opaque)
                 }
             }
         }
+        if (qemu_file_get_error(s->file)) {
+            __sync_val_compare_and_swap(&s->state, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
+	    break;
+        }
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = s->bytes_xfer;
             uint64_t time_spent = current_time - initial_time;
@@ -660,9 +664,6 @@ static void *migration_thread(void *opaque)
         if (s->bytes_xfer >= s->xfer_limit) {
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
-        }
-        if (qemu_file_get_error(s->file)) {
-            __sync_val_compare_and_swap(&s->state, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
         }
     }
 

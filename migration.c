@@ -614,7 +614,6 @@ static void *migration_thread(void *opaque)
     int64_t max_size = 0;
     int64_t start_time = initial_time;
     bool old_vm_running = false;
-    bool last_round = false;
 
     DPRINTF("beginning savevm\n");
     qemu_savevm_state_begin(s->file, &s->params);
@@ -638,8 +637,11 @@ static void *migration_thread(void *opaque)
                 vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
                 s->xfer_limit = INT_MAX;
                 qemu_savevm_state_complete(s->file);
-                last_round = true;
                 qemu_mutex_unlock_iothread();
+                if (!qemu_file_get_error(s->file)) {
+                    __sync_val_compare_and_swap(&s->state, MIG_STATE_ACTIVE, MIG_STATE_COMPLETED);
+                    break;
+                }
             }
         }
         if (current_time >= initial_time + BUFFER_DELAY) {
@@ -655,14 +657,12 @@ static void *migration_thread(void *opaque)
             s->bytes_xfer = 0;
             initial_time = current_time;
         }
-        if (!last_round && (s->bytes_xfer >= s->xfer_limit)) {
+        if (s->bytes_xfer >= s->xfer_limit) {
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
         if (qemu_file_get_error(s->file)) {
             __sync_val_compare_and_swap(&s->state, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
-        } else if (last_round) {
-            __sync_val_compare_and_swap(&s->state, MIG_STATE_ACTIVE, MIG_STATE_COMPLETED);
         }
     }
 
@@ -674,7 +674,6 @@ static void *migration_thread(void *opaque)
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
         if (old_vm_running) {
-            assert(last_round);
             vm_start();
         }
     }

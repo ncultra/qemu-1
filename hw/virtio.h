@@ -134,6 +134,8 @@ struct VirtIODevice
      */
     uint32_t (*get_features)(VirtIODevice *vdev, uint32_t requested_features);
     uint32_t (*bad_features)(VirtIODevice *vdev);
+    int (*set_vhost_endpoint)(VirtIODevice *vdev);
+    void (*clear_vhost_endpoint)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint32_t val);
     void (*get_config)(VirtIODevice *vdev, uint8_t *config);
     void (*set_config)(VirtIODevice *vdev, const uint8_t *config);

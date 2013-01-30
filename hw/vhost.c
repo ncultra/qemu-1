@@ -985,6 +985,12 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_vq;
         }
     }
+    if (vdev->set_vhost_endpoint) {
+        r = vdev->set_vhost_endpoint(vdev);
+        if (r < 0) {
+            goto fail_vq;
+        }
+    }
 
     for (j = 0; j < hdev->nvqs; ++j) {
         r = vhost_virtqueue_start(hdev,
@@ -1051,6 +1057,9 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
     }
     assert (r >= 0);
 
+    if (vdev->clear_vhost_endpoint) {
+        vdev->clear_vhost_endpoint(vdev);
+    }
     hdev->started = false;
     g_free(hdev->log);
     hdev->log = NULL;

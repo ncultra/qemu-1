@@ -612,20 +612,16 @@ static void vhost_log_stop(MemoryListener *listener,
     /* FIXME: implement */
 }
 
-static int vhost_virtqueue_start(struct vhost_dev *dev,
-                                struct VirtIODevice *vdev,
-                                struct vhost_virtqueue *vq,
-                                unsigned idx)
+static int vhost_virtqueue_map(struct vhost_dev *dev,
+                               struct VirtIODevice *vdev,
+                               struct vhost_virtqueue *vq,
+                               unsigned idx)
 {
     hwaddr s, l, a;
     int r;
-    struct vhost_vring_file file = {
-        .index = idx,
-    };
     struct vhost_vring_state state = {
         .index = idx,
     };
-    struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
 
     vq->num = state.num = virtio_queue_get_num(vdev, idx);
     r = ioctl(dev->control, VHOST_SET_VRING_NUM, &state);
@@ -674,19 +670,9 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         r = -errno;
         goto fail_alloc;
     }
-    file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
-    r = ioctl(dev->control, VHOST_SET_VRING_KICK, &file);
-    if (r) {
-        r = -errno;
-        goto fail_kick;
-    }
-
-    /* Clear and discard previous events if any. */
-    event_notifier_test_and_clear(&vq->masked_notifier);
 
     return 0;
 
-fail_kick:
 fail_alloc:
     cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
                               0, 0);
@@ -703,7 +689,29 @@ fail_alloc_desc:
     return r;
 }
 
-static void vhost_virtqueue_stop(struct vhost_dev *dev,
+static int vhost_virtqueue_start(struct vhost_dev *dev,
+                                 struct VirtIODevice *vdev,
+                                 struct vhost_virtqueue *vq,
+                                 unsigned idx)
+{
+    struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
+    struct vhost_vring_file file = {
+        .index = idx,
+        .fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq))
+    };
+    int r;
+
+    r = ioctl(dev->control, VHOST_SET_VRING_KICK, &file);
+    if (r) {
+        return -errno;
+    }
+
+    /* Clear and discard previous events if any. */
+    event_notifier_test_and_clear(&vq->masked_notifier);
+    return 0;
+}
+
+static void vhost_virtqueue_unmap(struct vhost_dev *dev,
                                     struct VirtIODevice *vdev,
                                     struct vhost_virtqueue *vq,
                                     unsigned idx)
@@ -941,7 +949,7 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
 /* Host notifiers must be enabled at this point. */
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
-    int i, r;
+    int i, j, r;
 
     hdev->started = true;
 
@@ -969,10 +977,20 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail_mem;
     }
     for (i = 0; i < hdev->nvqs; ++i) {
+        r = vhost_virtqueue_map(hdev,
+                                vdev,
+                                hdev->vqs + i,
+                                i);
+        if (r < 0) {
+            goto fail_vq;
+        }
+    }
+
+    for (j = 0; j < hdev->nvqs; ++j) {
         r = vhost_virtqueue_start(hdev,
                                  vdev,
-                                 hdev->vqs + i,
-                                 i);
+                                 hdev->vqs + j,
+                                 j);
         if (r < 0) {
             goto fail_vq;
         }
@@ -994,7 +1012,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 fail_log:
 fail_vq:
     while (--i >= 0) {
-        vhost_virtqueue_stop(hdev,
+        vhost_virtqueue_unmap(hdev,
                                 vdev,
                                 hdev->vqs + i,
                                 i);
@@ -1015,7 +1033,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
     int i, r;
 
     for (i = 0; i < hdev->nvqs; ++i) {
-        vhost_virtqueue_stop(hdev,
+        vhost_virtqueue_unmap(hdev,
                                 vdev,
                                 hdev->vqs + i,
                                 i);

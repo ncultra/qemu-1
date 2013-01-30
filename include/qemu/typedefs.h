@@ -57,5 +57,6 @@ typedef struct EventNotifier EventNotifier;
 typedef struct VirtIODevice VirtIODevice;
 typedef struct QEMUSGList QEMUSGList;
 typedef struct SHPCDevice SHPCDevice;
+typedef struct VHostSCSI VHostSCSI;
 
 #endif /* QEMU_TYPEDEFS_H */

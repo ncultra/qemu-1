@@ -16,8 +16,8 @@
 
 #include <sys/ioctl.h>
 #include "config.h"
-#include "qemu-queue.h"
-#include "monitor.h"
+#include "qemu/queue.h"
+#include "monitor/monitor.h"
 #include "vhost-scsi.h"
 #include "vhost.h"
 

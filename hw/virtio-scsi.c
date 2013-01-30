@@ -14,7 +14,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "vhost-scsi.h"
 #include "virtio-scsi.h"
 #include <hw/scsi.h>
@@ -25,7 +25,7 @@
 #define VIRTIO_SCSI_CDB_SIZE    32
 #define VIRTIO_SCSI_SENSE_SIZE  96
 #define VIRTIO_SCSI_MAX_CHANNEL 0
-#define VIRTIO_SCSI_MAX_TARGET  255
+#define VIRTIO_SCSI_MAX_TARGET  0
 #define VIRTIO_SCSI_MAX_LUN     16383
 
 /* Response codes */

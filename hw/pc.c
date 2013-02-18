@@ -565,7 +565,7 @@ static unsigned int pc_apic_id_limit(unsigned int max_cpus)
 
 static void *bochs_bios_init(void)
 {
-    void *fw_cfg;
+    FWCfgCommonState *fw_cfg;
     uint8_t *smbios_table;
     size_t smbios_len;
     uint64_t *numa_fw_cfg;

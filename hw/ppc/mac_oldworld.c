@@ -98,7 +98,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1);
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    void *fw_cfg;
+    FWCfgCommonState *fw_cfg;
 
     linux_boot = (kernel_filename != NULL);
 

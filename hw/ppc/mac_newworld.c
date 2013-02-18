@@ -156,7 +156,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    void *fw_cfg;
+    FWCfgCommonState *fw_cfg;
     int machine_arch;
     SysBusDevice *s;
     DeviceState *dev;

@@ -40,7 +40,7 @@ typedef struct FWCfgEntry {
     FWCfgCallback callback;
 } FWCfgEntry;
 
-struct FWCfgState {
+struct FWCfgCommonState {
     SysBusDevice busdev;
     MemoryRegion ctl_iomem, data_iomem, comb_iomem;
     uint32_t ctl_iobase, data_iobase;
@@ -106,7 +106,7 @@ error:
     return NULL;
 }
 
-static void fw_cfg_bootsplash(FWCfgState *s)
+static void fw_cfg_bootsplash(FWCfgCommonState *s)
 {
     int boot_splash_time = -1;
     const char *boot_splash_filename = NULL;
@@ -176,7 +176,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     }
 }
 
-static void fw_cfg_reboot(FWCfgState *s)
+static void fw_cfg_reboot(FWCfgCommonState *s)
 {
     int reboot_timeout = -1;
     char *p;
@@ -200,7 +200,7 @@ static void fw_cfg_reboot(FWCfgState *s)
     fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&reboot_timeout, 4), 4);
 }
 
-static void fw_cfg_write(FWCfgState *s, uint8_t value)
+static void fw_cfg_write(FWCfgCommonState *s, uint8_t value)
 {
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
     FWCfgEntry *e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
@@ -217,7 +217,7 @@ static void fw_cfg_write(FWCfgState *s, uint8_t value)
     }
 }
 
-static int fw_cfg_select(FWCfgState *s, uint16_t key)
+static int fw_cfg_select(FWCfgCommonState *s, uint16_t key)
 {
     int ret;
 
@@ -234,7 +234,7 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
     return ret;
 }
 
-static uint8_t fw_cfg_read(FWCfgState *s)
+static uint8_t fw_cfg_read(FWCfgCommonState *s)
 {
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
     FWCfgEntry *e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
@@ -323,7 +323,7 @@ static const MemoryRegionOps fw_cfg_comb_mem_ops = {
 
 static void fw_cfg_reset(DeviceState *d)
 {
-    FWCfgState *s = DO_UPCAST(FWCfgState, busdev.qdev, d);
+    FWCfgCommonState *s = DO_UPCAST(FWCfgCommonState, busdev.qdev, d);
 
     fw_cfg_select(s, 0);
 }
@@ -367,14 +367,14 @@ static const VMStateDescription vmstate_fw_cfg = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT16(cur_entry, FWCfgState),
-        VMSTATE_UINT16_HACK(cur_offset, FWCfgState, is_version_1),
-        VMSTATE_UINT32_V(cur_offset, FWCfgState, 2),
+        VMSTATE_UINT16(cur_entry, FWCfgCommonState),
+        VMSTATE_UINT16_HACK(cur_offset, FWCfgCommonState, is_version_1),
+        VMSTATE_UINT32_V(cur_offset, FWCfgCommonState, 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
-void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
+void fw_cfg_add_bytes(FWCfgCommonState *s, uint16_t key, void *data, size_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
@@ -386,14 +386,14 @@ void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
     s->entries[arch][key].len = (uint32_t)len;
 }
 
-void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
+void fw_cfg_add_string(FWCfgCommonState *s, uint16_t key, const char *value)
 {
     size_t sz = strlen(value) + 1;
 
     return fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
 }
 
-void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
+void fw_cfg_add_i16(FWCfgCommonState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
 
@@ -402,7 +402,7 @@ void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
-void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
+void fw_cfg_add_i32(FWCfgCommonState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
 
@@ -411,7 +411,7 @@ void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
-void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
+void fw_cfg_add_i64(FWCfgCommonState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy;
 
@@ -420,7 +420,7 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
-void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
+void fw_cfg_add_callback(FWCfgCommonState *s, uint16_t key, FWCfgCallback callback,
                          void *callback_opaque, void *data, size_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
@@ -437,7 +437,7 @@ void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
     s->entries[arch][key].callback = callback;
 }
 
-void fw_cfg_add_file(FWCfgState *s,  const char *filename,
+void fw_cfg_add_file(FWCfgCommonState *s,  const char *filename,
                      void *data, size_t len)
 {
     int i, index;
@@ -473,7 +473,7 @@ void fw_cfg_add_file(FWCfgState *s,  const char *filename,
 static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 {
     size_t len;
-    FWCfgState *s = container_of(n, FWCfgState, machine_ready);
+    FWCfgCommonState *s = container_of(n, FWCfgCommonState, machine_ready);
     char *bootindex = get_boot_devices_list(&len);
 
     fw_cfg_add_file(s, "bootorder", (uint8_t*)bootindex, len);
@@ -494,12 +494,12 @@ static void fw_cfg_instance_init(Object *obj)
     qemu_add_machine_init_done_notifier(&s->machine_ready);
 }
 
-FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
+FWCfgCommonState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
                         hwaddr ctl_addr, hwaddr data_addr)
 {
     DeviceState *dev;
     SysBusDevice *d;
-    FWCfgState *s;
+    FWCfgCommonState *s;
 
     dev = qdev_create(NULL, "fw_cfg");
     qdev_prop_set_uint32(dev, "ctl_iobase", ctl_port);
@@ -507,7 +507,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     qdev_init_nofail(dev);
     d = SYS_BUS_DEVICE(dev);
 
-    s = DO_UPCAST(FWCfgState, busdev.qdev, dev);
+    s = DO_UPCAST(FWCfgCommonState, busdev.qdev, dev);
 
     if (ctl_addr) {
         sysbus_mmio_map(d, 0, ctl_addr);
@@ -521,7 +521,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
 static int fw_cfg_init1(SysBusDevice *dev)
 {
-    FWCfgState *s = FROM_SYSBUS(FWCfgState, dev);
+    FWCfgCommonState *s = FROM_SYSBUS(FWCfgCommonState, dev);
 
     memory_region_init_io(&s->ctl_iomem, &fw_cfg_ctl_mem_ops, s,
                           "fwcfg.ctl", FW_CFG_SIZE);
@@ -567,7 +567,7 @@ static void fw_cfg_class_init(ObjectClass *klass, void *data)
 static const TypeInfo fw_cfg_info = {
     .name          = "fw_cfg",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(FWCfgState),
+    .instance_size = sizeof(FWCfgCommonState),
     .class_init    = fw_cfg_class_init,
     .instance_init = fw_cfg_instance_init,
 };

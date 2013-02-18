@@ -64,7 +64,6 @@
 
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
 #define ACPI_DATA_SIZE       0x10000
-#define BIOS_CFG_IOPORT 0x510
 #define FW_CFG_ACPI_TABLES (FW_CFG_ARCH_LOCAL + 0)
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)

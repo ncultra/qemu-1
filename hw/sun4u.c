@@ -76,7 +76,6 @@
 #define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
-#define BIOS_CFG_IOPORT      0x510
 #define FW_CFG_SPARC64_WIDTH (FW_CFG_ARCH_LOCAL + 0x00)
 #define FW_CFG_SPARC64_HEIGHT (FW_CFG_ARCH_LOCAL + 0x01)
 #define FW_CFG_SPARC64_DEPTH (FW_CFG_ARCH_LOCAL + 0x02)

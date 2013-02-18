@@ -336,7 +336,7 @@ static const MemoryRegionOps fw_cfg_comb_mem_ops = {
 
 static void fw_cfg_reset(DeviceState *d)
 {
-    FWCfgCommonState *s = DO_UPCAST(FWCfgCommonState, busdev.qdev, d);
+    FWCfgCommonState *s = FW_CFG_COMMON(d);
 
     fw_cfg_select(s, 0);
 }
@@ -520,7 +520,7 @@ FWCfgCommonState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     qdev_init_nofail(dev);
     d = SYS_BUS_DEVICE(dev);
 
-    s = DO_UPCAST(FWCfgCommonState, busdev.qdev, dev);
+    s = FW_CFG_COMMON(dev);
 
     if (ctl_addr) {
         sysbus_mmio_map(d, 0, ctl_addr);
@@ -534,7 +534,7 @@ FWCfgCommonState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
 static int fw_cfg_init1(SysBusDevice *dev)
 {
-    FWCfgCommonState *s = FROM_SYSBUS(FWCfgCommonState, dev);
+    FWCfgCommonState *s = FW_CFG_COMMON(dev);
 
     memory_region_init_io(&s->ctl_iomem, &fw_cfg_ctl_mem_ops, s,
                           "fwcfg.ctl", FW_CFG_SIZE);

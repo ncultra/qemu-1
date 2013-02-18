@@ -44,8 +44,6 @@ typedef struct FWCfgEntry {
 
 struct FWCfgCommonState {
     SysBusDevice busdev;
-    MemoryRegion ctl_iomem, data_iomem, comb_iomem;
-    uint32_t ctl_iobase, data_iobase;
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
     FWCfgFiles *files;
     uint16_t cur_entry;
@@ -507,70 +505,10 @@ static void fw_cfg_common_instance_init(Object *obj)
     qemu_add_machine_init_done_notifier(&s->machine_ready);
 }
 
-FWCfgCommonState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-                        hwaddr ctl_addr, hwaddr data_addr)
-{
-    DeviceState *dev;
-    SysBusDevice *d;
-    FWCfgCommonState *s;
-
-    dev = qdev_create(NULL, "fw_cfg");
-    qdev_prop_set_uint32(dev, "ctl_iobase", ctl_port);
-    qdev_prop_set_uint32(dev, "data_iobase", data_port);
-    qdev_init_nofail(dev);
-    d = SYS_BUS_DEVICE(dev);
-
-    s = FW_CFG_COMMON(dev);
-
-    if (ctl_addr) {
-        sysbus_mmio_map(d, 0, ctl_addr);
-    }
-    if (data_addr) {
-        sysbus_mmio_map(d, 1, data_addr);
-    }
-
-    return s;
-}
-
-static int fw_cfg_init1(SysBusDevice *dev)
-{
-    FWCfgCommonState *s = FW_CFG_COMMON(dev);
-
-    memory_region_init_io(&s->ctl_iomem, &fw_cfg_ctl_mem_ops, s,
-                          "fwcfg.ctl", FW_CFG_SIZE);
-    sysbus_init_mmio(dev, &s->ctl_iomem);
-    memory_region_init_io(&s->data_iomem, &fw_cfg_data_mem_ops, s,
-                          "fwcfg.data", FW_CFG_DATA_SIZE);
-    sysbus_init_mmio(dev, &s->data_iomem);
-    /* In case ctl and data overlap: */
-    memory_region_init_io(&s->comb_iomem, &fw_cfg_comb_mem_ops, s,
-                          "fwcfg", FW_CFG_SIZE);
-
-    if (s->ctl_iobase + 1 == s->data_iobase) {
-        sysbus_add_io(dev, s->ctl_iobase, &s->comb_iomem);
-    } else {
-        if (s->ctl_iobase) {
-            sysbus_add_io(dev, s->ctl_iobase, &s->ctl_iomem);
-        }
-        if (s->data_iobase) {
-            sysbus_add_io(dev, s->data_iobase, &s->data_iomem);
-        }
-    }
-    return 0;
-}
-
-static Property fw_cfg_properties[] = {
-    DEFINE_PROP_HEX32("ctl_iobase", FWCfgState, ctl_iobase, -1),
-    DEFINE_PROP_HEX32("data_iobase", FWCfgState, data_iobase, -1),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void fw_cfg_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = fw_cfg_init1;
     dc->no_user = 1;
     dc->reset = fw_cfg_reset;
     dc->vmsd = &vmstate_fw_cfg;
@@ -586,15 +524,119 @@ static const TypeInfo fw_cfg_common_info = {
     .instance_init = fw_cfg_common_instance_init,
 };
 
+
+/* MMIO version */
+
+#define TYPE_FW_CFG_MMIO                    "fw_cfg_mmio"
+
+#define FW_CFG_MMIO(obj) \
+       OBJECT_CHECK(FWCfgMMIOState, obj, TYPE_FW_CFG_MMIO)
+
+struct FWCfgMMIOState {
+    FWCfgCommonState parent;
+    MemoryRegion ctl_iomem, data_iomem;
+};
+
+static int fw_cfg_init1_mmio(SysBusDevice *dev)
+{
+    FWCfgMMIOState *s = FW_CFG_MMIO(dev);
+
+    memory_region_init_io(&s->ctl_iomem, &fw_cfg_ctl_mem_ops, s,
+                          "fwcfg.ctl", FW_CFG_SIZE);
+    sysbus_init_mmio(dev, &s->ctl_iomem);
+    memory_region_init_io(&s->data_iomem, &fw_cfg_data_mem_ops, s,
+                          "fwcfg.data", FW_CFG_DATA_SIZE);
+    sysbus_init_mmio(dev, &s->data_iomem);
+    return 0;
+}
+
+static void fw_cfg_mmio_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = fw_cfg_init1_mmio;
+}
+
+FWCfgCommonState *fw_cfg_init_mmio(hwaddr ctl_addr, hwaddr data_addr)
+{
+    DeviceState *dev;
+    SysBusDevice *d;
+
+    dev = qdev_create(NULL, TYPE_FW_CFG_MMIO);
+    qdev_init_nofail(dev);
+    d = SYS_BUS_DEVICE(dev);
+
+    sysbus_mmio_map(d, 0, ctl_addr);
+    sysbus_mmio_map(d, 1, data_addr);
+
+    return FW_CFG_COMMON(dev);
+}
+
 static const TypeInfo fw_cfg_info = {
-    .name          = "fw_cfg",
+    .name          = TYPE_FW_CFG_MMIO,
+    .parent        = TYPE_FW_CFG_COMMON,
+    .instance_size = sizeof(FWCfgMMIOState),
+    .class_init    = fw_cfg_mmio_class_init,
+};
+
+/* PIO version */
+
+#define TYPE_FW_CFG                    "fw_cfg"
+
+#define FW_CFG(obj) \
+       OBJECT_CHECK(FWCfgMMIOState, obj, TYPE_FW_CFG)
+
+struct FWCfgState {
+    FWCfgCommonState parent;
+    MemoryRegion comb_iomem;
+    uint32_t iobase;
+};
+
+FWCfgCommonState *fw_cfg_init(uint32_t iobase)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, TYPE_FW_CFG);
+    qdev_prop_set_uint32(dev, "iobase", iobase);
+    qdev_init_nofail(dev);
+
+    return FW_CFG_COMMON(dev);
+}
+
+static int fw_cfg_init1(SysBusDevice *dev)
+{
+    FWCfgCommonState *s = FW_CFG(dev);
+
+    memory_region_init_io(&s->comb_iomem, &fw_cfg_comb_mem_ops, s,
+                          "fwcfg", FW_CFG_SIZE);
+
+    sysbus_add_io(dev, s->iobase, &s->comb_iomem);
+    return 0;
+}
+
+static void fw_cfg_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = fw_cfg_init1;
+}
+
+static Property fw_cfg_properties[] = {
+    DEFINE_PROP_HEX32("iobase", FWCfgState, iobase, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static const TypeInfo fw_cfg_info = {
+    .name          = TYPE_FW_CFG,
     .parent        = TYPE_FW_CFG_COMMON,
     .instance_size = sizeof(FWCfgState),
+    .class_init    = fw_cfg_class_init,
 };
 
 static void fw_cfg_register_types(void)
 {
     type_register_static(&fw_cfg_common_info);
+    type_register_static(&fw_cfg_mmio_info);
     type_register_static(&fw_cfg_info);
 }
 

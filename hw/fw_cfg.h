@@ -65,8 +65,8 @@ void fw_cfg_add_callback(FWCfgCommonState *s, uint16_t key, FWCfgCallback callba
                          void *callback_opaque, void *data, size_t len);
 void fw_cfg_add_file(FWCfgCommonState *s, const char *filename, void *data,
                      size_t len);
-FWCfgCommonState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-                              hwaddr crl_addr, hwaddr data_addr);
+FWCfgCommonState *fw_cfg_init(uint32_t iobase);
+FWCfgCommonState *fw_cfg_init_mmio(hwaddr ctl_addr, hwaddr data_addr);
 
 #endif /* NO_QEMU_PROTOS */
 

@@ -479,6 +479,21 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     fw_cfg_add_file(s, "bootorder", (uint8_t*)bootindex, len);
 }
 
+static void fw_cfg_instance_init(Object *obj)
+{
+    FWCfgCommonState *s = FW_CFG_COMMON(obj);
+    fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (char *)"QEMU", 4);
+    fw_cfg_add_bytes(s, FW_CFG_UUID, qemu_uuid, 16);
+    fw_cfg_add_i16(s, FW_CFG_NOGRAPHIC, (uint16_t)(display_type == DT_NOGRAPHIC));
+    fw_cfg_add_i16(s, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
+    fw_cfg_add_i16(s, FW_CFG_BOOT_MENU, (uint16_t)boot_menu);
+    fw_cfg_bootsplash(s);
+    fw_cfg_reboot(s);
+
+    s->machine_ready.notify = fw_cfg_machine_ready;
+    qemu_add_machine_init_done_notifier(&s->machine_ready);
+}
+
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
                         hwaddr ctl_addr, hwaddr data_addr)
 {
@@ -500,16 +515,6 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     if (data_addr) {
         sysbus_mmio_map(d, 1, data_addr);
     }
-    fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (char *)"QEMU", 4);
-    fw_cfg_add_bytes(s, FW_CFG_UUID, qemu_uuid, 16);
-    fw_cfg_add_i16(s, FW_CFG_NOGRAPHIC, (uint16_t)(display_type == DT_NOGRAPHIC));
-    fw_cfg_add_i16(s, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
-    fw_cfg_add_i16(s, FW_CFG_BOOT_MENU, (uint16_t)boot_menu);
-    fw_cfg_bootsplash(s);
-    fw_cfg_reboot(s);
-
-    s->machine_ready.notify = fw_cfg_machine_ready;
-    qemu_add_machine_init_done_notifier(&s->machine_ready);
 
     return s;
 }
@@ -564,6 +569,7 @@ static const TypeInfo fw_cfg_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FWCfgState),
     .class_init    = fw_cfg_class_init,
+    .instance_init = fw_cfg_instance_init,
 };
 
 static void fw_cfg_register_types(void)

@@ -33,6 +33,8 @@
 #define FW_CFG_SIZE 2
 #define FW_CFG_DATA_SIZE 1
 
+#define TYPE_FW_CFG_COMMON "fw_cfg_common"
+
 typedef struct FWCfgEntry {
     uint32_t len;
     uint8_t *data;
@@ -50,6 +52,17 @@ struct FWCfgCommonState {
     uint32_t cur_offset;
     Notifier machine_ready;
 };
+
+typedef struct FWCfgCommonClass {
+    SysBusDeviceClass parent;
+} FWCfgCommonClass;
+
+#define FW_CFG_COMMON_GET_CLASS(obj) \
+       OBJECT_GET_CLASS(FWCfgCommonClass, obj, TYPE_FW_CFG_COMMON)
+#define FW_CFG_COMMON_CLASS(klass) \
+       OBJECT_CLASS_CHECK(FWCfgCommonClass, klass, TYPE_FW_CFG_COMMON)
+#define FW_CFG_COMMON(obj) \
+       OBJECT_CHECK(FWCfgCommonState, obj, TYPE_FW_CFG_COMMON)
 
 #define JPG_FILE 0
 #define BMP_FILE 1
@@ -479,7 +492,7 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     fw_cfg_add_file(s, "bootorder", (uint8_t*)bootindex, len);
 }
 
-static void fw_cfg_instance_init(Object *obj)
+static void fw_cfg_common_instance_init(Object *obj)
 {
     FWCfgCommonState *s = FW_CFG_COMMON(obj);
     fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (char *)"QEMU", 4);
@@ -552,7 +565,7 @@ static Property fw_cfg_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void fw_cfg_class_init(ObjectClass *klass, void *data)
+static void fw_cfg_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
@@ -564,16 +577,24 @@ static void fw_cfg_class_init(ObjectClass *klass, void *data)
     dc->props = fw_cfg_properties;
 }
 
-static const TypeInfo fw_cfg_info = {
-    .name          = "fw_cfg",
+static const TypeInfo fw_cfg_common_info = {
+    .name          = TYPE_FW_CFG_COMMON,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FWCfgCommonState),
-    .class_init    = fw_cfg_class_init,
-    .instance_init = fw_cfg_instance_init,
+    .class_size    = sizeof(FWCfgCommonClass),
+    .class_init    = fw_cfg_common_class_init,
+    .instance_init = fw_cfg_common_instance_init,
+};
+
+static const TypeInfo fw_cfg_info = {
+    .name          = "fw_cfg",
+    .parent        = TYPE_FW_CFG_COMMON,
+    .instance_size = sizeof(FWCfgState),
 };
 
 static void fw_cfg_register_types(void)
 {
+    type_register_static(&fw_cfg_common_info);
     type_register_static(&fw_cfg_info);
 }
 

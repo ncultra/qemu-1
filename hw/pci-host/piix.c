@@ -32,6 +32,7 @@
 #include "hw/xen/xen.h"
 #include "hw/pci-host/pam.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/cpus.h"
 
 /*
  * I440FX chipset data sheet.
@@ -524,8 +525,11 @@ static void rcr_write(void *opaque, hwaddr addr, uint64_t val, unsigned len)
     PIIX3State *d = opaque;
 
     if (val & 4) {
-        qemu_system_reset_request();
-        return;
+        if (val & 2) {
+            qemu_system_reset_request();
+        } else {
+            cpu_soft_reset();
+        }
     }
     d->rcr = val & 2; /* keep System Reset type only */
 }

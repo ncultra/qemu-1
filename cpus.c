@@ -405,6 +405,15 @@ void hw_error(const char *fmt, ...)
     abort();
 }
 
+void cpu_soft_reset(void)
+{
+    CPUArchState *env;
+
+    for (env = first_cpu; env; env = env->next_cpu) {
+        cpu_interrupt(ENV_GET_CPU(env), CPU_INTERRUPT_RESET);
+    }
+}
+
 void cpu_synchronize_all_states(void)
 {
     CPUArchState *cpu;

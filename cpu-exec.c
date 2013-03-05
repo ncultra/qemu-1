@@ -311,19 +311,26 @@ int cpu_exec(CPUArchState *env)
                     }
 #endif
 #if defined(TARGET_I386)
-#if !defined(CONFIG_USER_ONLY)
-                    if (interrupt_request & CPU_INTERRUPT_POLL) {
-                        cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
-                        apic_poll_irq(env->apic_state);
-                    }
-#endif
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
                             cpu_svm_check_intercept_param(env, SVM_EXIT_INIT,
                                                           0);
                             do_cpu_init(x86_env_get_cpu(env));
                             env->exception_index = EXCP_HALTED;
                             cpu_loop_exit(env);
-                    } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
+                    }
+#else
+                    if ((interrupt_request & CPU_INTERRUPT_RESET)) {
+                        cpu_reset(cpu);
+                    }
+#endif
+#if defined(TARGET_I386)
+#if !defined(CONFIG_USER_ONLY)
+                    if (interrupt_request & CPU_INTERRUPT_POLL) {
+                        cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
+                        apic_poll_irq(env->apic_state);
+                    }
+#endif
+                    if (interrupt_request & CPU_INTERRUPT_SIPI) {
                             do_cpu_sipi(x86_env_get_cpu(env));
                     } else if (env->hflags2 & HF2_GIF_MASK) {
                         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
@@ -377,9 +384,6 @@ int cpu_exec(CPUArchState *env)
                         }
                     }
 #elif defined(TARGET_PPC)
-                    if ((interrupt_request & CPU_INTERRUPT_RESET)) {
-                        cpu_reset(cpu);
-                    }
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         ppc_hw_interrupt(env);
                         if (env->pending_interrupts == 0) {

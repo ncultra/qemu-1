@@ -15,6 +15,7 @@
 
 bool kvm_allows_irq0_override(void);
 void kvm_arch_reset_vcpu(CPUState *cs);
+void kvm_arch_do_init_vcpu(CPUState *cs);
 
 int kvm_device_pci_assign(KVMState *s, PCIHostDeviceAddress *dev_addr,
                           uint32_t flags, uint32_t *dev_id);

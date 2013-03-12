@@ -1287,9 +1287,11 @@ void do_cpu_init(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     int sipi = cs->interrupt_request & CPU_INTERRUPT_SIPI;
     uint64_t pat = env->pat;
+    uint32_t smbase = env->smbase;
 
     cpu_reset(cs);
     cs->interrupt_request = sipi;
+    env->smbase = smbase;
     env->pat = pat;
     if (kvm_enabled()) {
         kvm_arch_do_init_vcpu(cs);

@@ -144,12 +144,12 @@ static void apic_local_deliver(APICCommonState *s, int vector)
     uint32_t lvt = s->lvt[vector];
     int trigger_mode;
 
-    trace_apic_local_deliver(vector, (lvt >> 8) & 7);
+    trace_apic_local_deliver(vector, (lvt >> MSI_DATA_DELIVERY_MODE_SHIFT) & 7);
 
     if (lvt & APIC_LVT_MASKED)
         return;
 
-    switch ((lvt >> 8) & 7) {
+    switch ((lvt >> MSI_DATA_DELIVERY_MODE_SHIFT) & 7) {
     case APIC_DM_SMI:
         cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_SMI);
         break;
@@ -180,7 +180,7 @@ void apic_deliver_pic_intr(DeviceState *d, int level)
     } else {
         uint32_t lvt = s->lvt[APIC_LVT_LINT0];
 
-        switch ((lvt >> 8) & 7) {
+        switch ((lvt >> MSI_DATA_DELIVERY_MODE_SHIFT) & 7) {
         case APIC_DM_FIXED:
             if (!(lvt & APIC_LVT_LEVEL_TRIGGER))
                 break;
@@ -445,7 +445,7 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
     APICCommonState *apic_iter;
     int i;
 
-    if (dest_mode == 0) {
+    if (dest_mode == APIC_DEST_PHYSICAL) {
         if (dest == 0xff) {
             memset(deliver_bitmask, 0xff, MAX_APIC_WORDS * sizeof(uint32_t));
         } else {
@@ -494,27 +494,30 @@ void apic_sipi(DeviceState *d)
     s->wait_for_sipi = 0;
 }
 
-static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
-                         uint8_t delivery_mode, uint8_t vector_num,
-                         uint8_t trigger_mode)
+static void apic_deliver(DeviceState *d, uint32_t icr, uint32_t icr2)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
-    int dest_shorthand = (s->icr[0] >> 18) & 3;
+    uint8_t dest = (icr2 >> 24) & 0xff;
+    uint8_t dest_mode = (icr >> APIC_ICR_DESTMODE_SHIFT) & 1;
+    uint8_t delivery_mode = (icr >> MSI_DATA_DELIVERY_MODE_SHIFT) & 7;
+    uint8_t vector_num = (icr & 0xff);
+    uint8_t trigger_mode = (icr >> MSI_DATA_TRIGGER_SHIFT) & 1;
+    int dest_shorthand = (icr >> APIC_ICR_DEST_SHORTHAND_SHIFT) & 3;
     APICCommonState *apic_iter;
 
     switch (dest_shorthand) {
-    case 0:
+    case APIC_DEST_FULL:
         apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
         break;
-    case 1:
+    case APIC_DEST_SELF:
         memset(deliver_bitmask, 0x00, sizeof(deliver_bitmask));
         set_bit(deliver_bitmask, s->idx);
         break;
-    case 2:
+    case APIC_DEST_ALLINC:
         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
         break;
-    case 3:
+    case APIC_DEST_ALLBUT:
         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
         reset_bit(deliver_bitmask, s->idx);
         break;
@@ -523,8 +526,8 @@ static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
     switch (delivery_mode) {
         case APIC_DM_INIT:
             {
-                int trig_mode = (s->icr[0] >> 15) & 1;
-                int level = (s->icr[0] >> 14) & 1;
+                int trig_mode = (s->icr[0] >> MSI_DATA_TRIGGER_SHIFT) & 1;
+                int level = (s->icr[0] >> MSI_DATA_LEVEL_SHIFT) & 1;
                 if (level == 0 && trig_mode == 1) {
                     foreach_apic(apic_iter, deliver_bitmask,
                                  apic_iter->arb_id = apic_iter->id );
@@ -810,9 +813,7 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
         break;
     case 0x30:
         s->icr[0] = val;
-        apic_deliver(d, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
-                     (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff),
-                     (s->icr[0] >> 15) & 1);
+        apic_deliver(d, s->icr[0], s->icr[1]);
         break;
     case 0x31:
         s->icr[1] = val;

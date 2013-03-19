@@ -43,8 +43,20 @@
 #define APIC_DM_EXTINT                  7
 
 /* APIC destination mode */
+#define APIC_ICR_DESTMODE_SHIFT         11
+#define APIC_DEST_LOGICAL               0
+#define APIC_DEST_PHYSICAL              1
+
+/* APIC destination mode */
 #define APIC_DESTMODE_FLAT              0xf
 #define APIC_DESTMODE_CLUSTER           1
+
+/* ICR destination shorthand */
+#define APIC_ICR_DEST_SHORTHAND_SHIFT   18
+#define APIC_DEST_FULL                  0
+#define APIC_DEST_SELF                  1
+#define APIC_DEST_ALLINC                2
+#define APIC_DEST_ALLBUT                3
 
 #define APIC_TRIGGER_EDGE               0
 #define APIC_TRIGGER_LEVEL              1

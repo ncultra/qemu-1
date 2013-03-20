@@ -84,6 +84,10 @@ static void s390_cpu_reset(CPUState *s)
      * after incrementing the cpu counter */
 #if !defined(CONFIG_USER_ONLY)
     s->halted = 1;
+
+    if (kvm_enabled()) {
+        kvm_arch_reset_vcpu(s);
+    }
 #endif
     tlb_flush(env, 1);
 }

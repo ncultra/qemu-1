@@ -430,10 +430,6 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     return 0;
 }
 
-void kvm_arch_reset_vcpu(CPUState *cs)
-{
-}
-
 bool kvm_arch_stop_on_emulation_error(CPUState *cs)
 {
     return true;

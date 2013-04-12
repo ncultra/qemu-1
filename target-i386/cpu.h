@@ -1034,11 +1034,6 @@ static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
 #endif
 }
 
-/* op_helper.c */
-/* used for debug or cpu save/restore */
-void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, floatx80 f);
-floatx80 cpu_set_fp80(uint64_t mant, uint16_t upper);
-
 /* cpu-exec.c */
 /* the following helpers are only usable in user mode simulation as
    they can trigger unexpected exceptions */

@@ -91,14 +91,14 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
 void cpu_exec_init(CPUArchState *env);
 void QEMU_NORETURN cpu_loop_exit(CPUArchState *env1);
 int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
-#if !defined(CONFIG_USER_ONLY)
-/* cputlb.c */
-void tlb_flush_page(CPUArchState *env, target_ulong addr);
-void tlb_flush(CPUArchState *env, int flush_global);
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
 void tb_invalidate_phys_addr(hwaddr addr);
+#if defined(CONFIG_SOFTMMU) && defined(CONFIG_TCG)
+/* cputlb.c */
+void tlb_flush_page(CPUArchState *env, target_ulong addr);
+void tlb_flush(CPUArchState *env, int flush_global);
 #else
 static inline void tlb_flush_page(CPUArchState *env, target_ulong addr)
 {
@@ -379,6 +379,7 @@ extern volatile sig_atomic_t exit_request;
    instruction of a TB so that interrupts take effect immediately.  */
 static inline int can_do_io(CPUArchState *env)
 {
+#ifdef CONFIG_TCG
     CPUState *cpu = ENV_GET_CPU(env);
 
     if (!use_icount) {
@@ -389,6 +390,9 @@ static inline int can_do_io(CPUArchState *env)
         return 1;
     }
     return env->can_do_io != 0;
+#else
+    return 1;
+#endif
 }
 
 #endif

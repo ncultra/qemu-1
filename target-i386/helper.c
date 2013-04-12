@@ -1253,10 +1253,12 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
         env->tpr_access_type = access;
 
         cpu_interrupt(CPU(cpu), CPU_INTERRUPT_TPR);
-    } else {
+    } else if (tcg_enabled()) {
         cpu_restore_state(env, env->mem_io_pc);
 
         apic_handle_tpr_access_report(cpu->apic_state, env->eip, access);
+    } else {
+        abort();
     }
 }
 #endif /* !CONFIG_USER_ONLY */

@@ -405,7 +405,7 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
         handlers = &s->rom_state.mp;
     }
 
-    if (!kvm_enabled()) {
+    if (tcg_enabled()) {
         cpu_restore_state(env, env->mem_io_pc);
         cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                              &current_flags);
@@ -446,7 +446,7 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 
     resume_all_vcpus();
 
-    if (!kvm_enabled()) {
+    if (tcg_enabled()) {
         cs->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, NULL);

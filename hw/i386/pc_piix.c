@@ -124,7 +124,7 @@ static void pc_init1(MemoryRegion *system_memory,
         fw_cfg = pc_memory_init(system_memory,
                        kernel_filename, kernel_cmdline, initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
-                       rom_memory, &ram_memory);
+                       rom_memory, &ram_memory, !pci_enabled);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
@@ -704,11 +704,6 @@ static QEMUMachine isapc_machine = {
     .init = pc_init_isa,
     .max_cpus = 1,
     .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "pc-sysfw",
-            .property = "isapc_ram_fw",
-            .value    = stringify(1),
-        },
         { /* end of list */ }
     },
     DEFAULT_MACHINE_OPTIONS,

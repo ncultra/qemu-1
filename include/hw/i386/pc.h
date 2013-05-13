@@ -87,7 +87,8 @@ void *pc_memory_init(MemoryRegion *system_memory,
                     ram_addr_t below_4g_mem_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *rom_memory,
-                    MemoryRegion **ram_memory);
+                    MemoryRegion **ram_memory,
+                    bool isapc_ram_fw);
 qemu_irq *pc_allocate_cpu_irq(void);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
@@ -168,7 +169,8 @@ static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
 }
 
 /* pc_sysfw.c */
-void pc_system_firmware_init(MemoryRegion *rom_memory);
+void pc_system_firmware_init(MemoryRegion *rom_memory,
+                             bool isapc_ram_fw);
 
 /* pvpanic.c */
 int pvpanic_init(ISABus *bus);

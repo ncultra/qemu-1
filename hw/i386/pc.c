@@ -1019,7 +1019,8 @@ void *pc_memory_init(MemoryRegion *system_memory,
                     ram_addr_t below_4g_mem_size,
                     ram_addr_t above_4g_mem_size,
                     MemoryRegion *rom_memory,
-                    MemoryRegion **ram_memory)
+                    MemoryRegion **ram_memory,
+                    bool isapc_ram_fw)
 {
     int linux_boot, i;
     MemoryRegion *ram, *option_rom_mr;
@@ -1051,7 +1052,7 @@ void *pc_memory_init(MemoryRegion *system_memory,
 
 
     /* Initialize PC system firmware */
-    pc_system_firmware_init(rom_memory);
+    pc_system_firmware_init(rom_memory, isapc_ram_fw);
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
     memory_region_init_ram(option_rom_mr, "pc.rom", PC_ROM_SIZE);

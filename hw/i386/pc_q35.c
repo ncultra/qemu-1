@@ -109,7 +109,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     if (!xen_enabled()) {
         pc_memory_init(get_system_memory(), kernel_filename, kernel_cmdline,
                        initrd_filename, below_4g_mem_size, above_4g_mem_size,
-                       rom_memory, &ram_memory);
+                       rom_memory, &ram_memory, false);
     }
 
     /* irq lines */

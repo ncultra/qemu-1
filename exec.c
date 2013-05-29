@@ -93,6 +93,8 @@ struct PhysPageEntry {
 typedef PhysPageEntry Node[L2_SIZE];
 
 struct AddressSpaceDispatch {
+    struct rcu_head rcu;
+
     /* This is a multi-level map on the physical address space.
      * The bottom level has pointers to MemoryRegionSections.
      */
@@ -116,6 +118,8 @@ typedef struct subpage_t {
 #define PHYS_SECTION_WATCH 3
 
 typedef struct PhysPageMap {
+    struct rcu_head rcu;
+
     unsigned sections_nb;
     unsigned sections_nb_alloc;
     unsigned nodes_nb;
@@ -231,6 +235,7 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
         && mr != &io_mem_watch;
 }
 
+/* Called from RCU critical section */
 static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
                                                         hwaddr addr,
                                                         bool resolve_subpage)
@@ -247,6 +252,7 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
     return section;
 }
 
+/* Called from RCU critical section */
 static MemoryRegionSection *
 address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *xlat,
                                  hwaddr *plen, bool resolve_subpage)
@@ -275,8 +281,10 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     MemoryRegion *mr;
     hwaddr len = *plen;
 
+    rcu_read_lock();
     for (;;) {
-        section = address_space_translate_internal(as->dispatch, addr, &addr, plen, true);
+        AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
+        section = address_space_translate_internal(d, addr, &addr, plen, true);
         mr = section->mr;
 
         if (!mr->iommu_ops) {
@@ -298,9 +306,11 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     *plen = len;
     *xlat = addr;
     memory_region_ref(mr);
+    rcu_read_unlock();
     return mr;
 }
 
+/* Called from RCU critical section */
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUArchState *env, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen)
@@ -725,6 +735,7 @@ static int cpu_physical_memory_set_dirty_tracking(int enable)
     return ret;
 }
 
+/* Called from RCU critical section */
 hwaddr memory_region_section_get_iotlb(CPUArchState *env,
                                        MemoryRegionSection *section,
                                        target_ulong vaddr,
@@ -1656,7 +1667,7 @@ static uint16_t dummy_section(MemoryRegion *mr)
 
 MemoryRegion *iotlb_to_region(CPUArchState *env, hwaddr index)
 {
-    MemoryRegionSection *sections = env->memory_dispatch->sections;
+    MemoryRegionSection *sections = atomic_rcu_read(&env->memory_dispatch->sections);
 
     return sections[index & ~TARGET_PAGE_MASK].mr;
 }
@@ -1691,7 +1702,7 @@ static void mem_commit(MemoryListener *listener)
     next->nodes = next_map.nodes;
     next->sections = next_map.sections;
 
-    as->dispatch = next;
+    atomic_rcu_set(&as->dispatch, next);
     g_free(cur);
 }
 
@@ -1714,11 +1725,12 @@ static void core_begin(MemoryListener *listener)
 }
 
 /* This listener's commit run after the other AddressSpaceDispatch listeners'.
- * All AddressSpaceDispatch instances have switched to the next map.
+ * All AddressSpaceDispatch instances have switched to the next map, but
+ * there may be concurrent readers.
  */
 static void core_commit(MemoryListener *listener)
 {
-    phys_sections_free(prev_map);
+    call_rcu(prev_map, phys_sections_free, rcu);
 }
 
 static void tcg_commit(MemoryListener *listener)
@@ -1770,13 +1782,18 @@ void address_space_init_dispatch(AddressSpace *as)
     memory_listener_register(&as->dispatch_listener, as);
 }
 
+static void address_space_dispatch_free(AddressSpaceDispatch *d)
+{
+    g_free(d);
+}
+
 void address_space_destroy_dispatch(AddressSpace *as)
 {
     AddressSpaceDispatch *d = as->dispatch;
 
     memory_listener_unregister(&as->dispatch_listener);
-    g_free(d);
-    as->dispatch = NULL;
+    atomic_rcu_set(&as->dispatch, NULL);
+    call_rcu(d, address_space_dispatch_free, rcu);
 }
 
 static void memory_map_init(void)

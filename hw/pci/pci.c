@@ -791,6 +791,8 @@ static void pci_device_instance_finalize(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
 
+    qemu_free_irqs(pci_dev->irq);
+    pci_config_free(pci_dev);
     pci_del_option_rom(pci_dev);
     address_space_destroy(&pci_dev->bus_master_as);
     memory_region_destroy(&pci_dev->bus_master_enable_region);
@@ -877,13 +879,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     return pci_dev;
 }
 
-static void do_pci_unregister_device(PCIDevice *pci_dev)
-{
-    qemu_free_irqs(pci_dev->irq);
-    pci_dev->bus->devices[pci_dev->devfn] = NULL;
-    pci_config_free(pci_dev);
-}
-
 static void pci_unregister_io_regions(PCIDevice *pci_dev)
 {
     PCIIORegion *r;
@@ -910,7 +905,7 @@ static int pci_unregister_device(DeviceState *dev)
         pc->exit(pci_dev);
     }
 
-    do_pci_unregister_device(pci_dev);
+    pci_dev->bus->devices[pci_dev->devfn] = NULL;
     return 0;
 }
 

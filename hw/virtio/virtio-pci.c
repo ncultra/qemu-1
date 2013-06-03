@@ -998,13 +998,14 @@ static void virtio_pci_exit(PCIDevice *pci_dev)
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     virtio_pci_stop_ioeventfd(proxy);
     msix_uninit_exclusive_bar(pci_dev);
-    msix_free_exclusive_bar(pci_dev);
 }
 
 static void virtio_pci_instance_finalize(Object *obj)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
     VirtIOPCIProxy *proxy = VIRTIO_PCI(obj);
     memory_region_destroy(&proxy->bar);
+    msix_free_exclusive_bar(pci_dev);
 }
 
 static void virtio_pci_reset(DeviceState *qdev)

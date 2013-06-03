@@ -1983,6 +1983,7 @@ vmxnet3_init_msix(VMXNET3State *s)
         if (!vmxnet3_use_msix_vectors(s, VMXNET3_MAX_INTRS)) {
             VMW_WRPRN("Failed to use MSI-X vectors, error %d", res);
             msix_uninit(d, &s->msix_bar, &s->msix_bar);
+            msix_free(d);
             s->msix_used = false;
         } else {
             s->msix_used = true;
@@ -1999,6 +2000,7 @@ vmxnet3_cleanup_msix(VMXNET3State *s)
     if (s->msix_used) {
         msix_vector_unuse(d, VMXNET3_MAX_INTRS);
         msix_uninit(d, &s->msix_bar, &s->msix_bar);
+        msix_free(d);
     }
 }
 
@@ -2342,6 +2344,7 @@ static int vmxnet3_post_load(void *opaque, int version_id)
         if  (!vmxnet3_use_msix_vectors(s, VMXNET3_MAX_INTRS)) {
             VMW_WRPRN("Failed to re-use MSI-X vectors");
             msix_uninit(d, &s->msix_bar, &s->msix_bar);
+            msix_free(d);
             s->msix_used = false;
             return -1;
         }

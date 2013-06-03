@@ -2079,6 +2079,7 @@ static void megasas_scsi_uninit(PCIDevice *d)
 
 #ifdef USE_MSIX
     msix_uninit(d, &s->mmio_io);
+    msix_free(d);
 #endif
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->port_io);

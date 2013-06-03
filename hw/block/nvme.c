@@ -836,6 +836,7 @@ static void nvme_exit(PCIDevice *pci_dev)
 
     nvme_clear_ctrl(n);
     msix_uninit_exclusive_bar(pci_dev);
+    msix_free_exclusive_bar(pci_dev);
 }
 
 static void nvme_instance_finalize(Object *obj)

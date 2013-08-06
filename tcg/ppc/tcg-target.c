@@ -1378,6 +1378,17 @@ static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
         }
     }
 
+    /* LT and GE have sequences that work for constant arg2.  Adjust
+     * arg2 to use them with LE and GT.
+     */
+    if (cond == TCG_COND_LE || cond == TCG_COND_GT) {
+        if (const_arg2 && (int16_t)-(arg2 + 1) == -(arg2 + 1)) {
+            arg2++;
+            /* LE -> LT, GT -> GE */
+            cond = tcg_invert_cond(tcg_swap_cond(cond));
+        }
+    }
+
     switch (cond) {
     case TCG_COND_EQ:
         if (const_arg2 && !arg2) {
@@ -1452,12 +1463,57 @@ static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
         goto crtest;
 
     case TCG_COND_LT:
+        if (const_arg2 && !arg2) {
+            tcg_out_shr(s, arg0, arg1, 31, 1);
+            break;
+        }
+        if (const_arg2 && (int16_t)-arg2 == -arg2) {
+            /* addi r0,arg1,-arg2; or arg0,arg1,r0; srwi arg0,arg0,31 (arg2>0)
+             * addi r0,arg1,-arg2; and arg0,arg1,r0; srwi arg0,arg0,31 (arg2<0)
+             *
+             * The first returns 1 if at least one of x and x-y are negative.
+             * The second returns 1 if both x and x-y are negative.
+             * Requires addition to be done with a single instruction,
+             * due to usage of r0 (addi in addis+addi would become li).
+             */
+            ppc_addi (s, 0, arg1, -arg2);
+            if (arg2 > 0) {
+                tcg_out32 (s, OR | SAB (arg1, arg0, 0));
+            } else {
+                tcg_out32 (s, AND | SAB (arg1, arg0, 0));
+            }
+            tcg_out_shr(s, arg0, arg0, 31, 1);
+            break;
+        }
     case TCG_COND_LTU:
         sh = 29;
         crop = 0;
         goto crtest;
 
     case TCG_COND_GE:
+        if (const_arg2 && !arg2) {
+            tcg_out_shr(s, arg0, arg1, 31, 1);
+            tcg_out_xor(s, arg0, arg0, 1, 1);
+            break;
+        }
+        if (const_arg2 && (int16_t)-arg2 == -arg2) {
+            /* addi r0,arg1,-arg2; nor arg0,arg1,r0; srwi arg0,arg0,31 (arg2>0)
+             * addi r0,arg1,-arg2; nand arg0,arg1,r0; srwi arg0,arg0,31 (arg2<0)
+             *
+             * The first returns 1 if neither x nor x-y are negative.
+             * The second returns 1 if either x or x-y are positive or zero.
+             * Requires addition to be done with a single instruction,
+             * due to usage of r0 (addi in addis+addi would become li).
+             */
+            ppc_addi (s, 0, arg1, -arg2);
+            if (arg2 > 0) {
+                tcg_out32 (s, NOR | SAB (arg1, arg0, 0));
+            } else {
+                tcg_out32 (s, NAND | SAB (arg1, arg0, 0));
+            }
+            tcg_out_shr(s, arg0, arg0, 31, 1);
+            break;
+        }
     case TCG_COND_GEU:
         sh = 31;
         crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_LT) | BB (7, CR_LT);

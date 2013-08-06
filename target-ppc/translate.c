@@ -237,6 +237,21 @@ static inline void gen_reset_fpstatus(void)
     gen_helper_reset_fpstatus(cpu_env);
 }
 
+static inline void gen_op_mfcr(TCGv dest, int first_cr, int shift)
+{
+    tcg_gen_shli_i32(dest, cpu_crf[first_cr >> 2], shift);
+}
+
+static inline void gen_op_mtcr(int first_cr, TCGv src, int shift)
+{
+    if (shift) {
+        tcg_gen_shri_i32(cpu_crf[first_cr >> 2], src, shift);
+        tcg_gen_andi_i32(cpu_crf[first_cr >> 2], cpu_crf[first_cr >> 2], 0x0F);
+    } else {
+        tcg_gen_andi_i32(cpu_crf[first_cr >> 2], src, 0x0F);
+    }
+}
+
 static inline void gen_compute_fprf(TCGv_i64 arg, int set_fprf, int set_rc)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -248,7 +263,7 @@ static inline void gen_compute_fprf(TCGv_i64 arg, int set_fprf, int set_rc)
     tcg_gen_movi_i32(t0, set_fprf != 0);
     gen_helper_compute_fprf(t0, cpu_env, arg, t0);
     if (set_rc) {
-        tcg_gen_mov_i32(cpu_crf[1], t0);
+        gen_op_mtcr(4, t0, 0);
     }
 
     if (set_fprf != 0) {
@@ -2280,6 +2295,7 @@ static void gen_fcpsgn(DisasContext *ctx)
 static void gen_mcrfs(DisasContext *ctx)
 {
     TCGv tmp = tcg_temp_new();
+    TCGv_i32 tmp32 = tcg_temp_new_i32();
     int bfa;
 
     if (unlikely(!ctx->fpu_enabled)) {
@@ -2288,10 +2304,11 @@ static void gen_mcrfs(DisasContext *ctx)
     }
     bfa = 4 * (7 - crfS(ctx->opcode));
     tcg_gen_shri_tl(tmp, cpu_fpscr, bfa);
-    tcg_gen_trunc_tl_i32(cpu_crf[crfD(ctx->opcode)], tmp);
+    tcg_gen_trunc_tl_i32(tmp32, tmp);
     tcg_temp_free(tmp);
-    tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], 0xf);
+    gen_op_mtcr(crfD(ctx->opcode) << 2, tmp32, 0);
     tcg_gen_andi_tl(cpu_fpscr, cpu_fpscr, ~(0xF << bfa));
+    tcg_temp_free(tmp32);
 }
 
 /* mffs */
@@ -2326,8 +2343,10 @@ static void gen_mtfsb0(DisasContext *ctx)
         tcg_temp_free_i32(t0);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        TCGv_i32 tmp32 = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(tmp32, cpu_fpscr);
+        gen_op_mtcr(4, tmp32, FPSCR_OX);
+        tcg_temp_free_i32(tmp32);
     }
 }
 
@@ -2352,8 +2371,10 @@ static void gen_mtfsb1(DisasContext *ctx)
         tcg_temp_free_i32(t0);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        TCGv_i32 tmp32 = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(tmp32, cpu_fpscr);
+        gen_op_mtcr(4, tmp32, FPSCR_OX);
+        tcg_temp_free_i32(tmp32);
     }
     /* We can raise a differed exception */
     gen_helper_float_check_status(cpu_env);
@@ -2387,8 +2408,10 @@ static void gen_mtfsf(DisasContext *ctx)
     gen_helper_store_fpscr(cpu_env, cpu_fpr[rB(ctx->opcode)], t0);
     tcg_temp_free_i32(t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        TCGv_i32 tmp32 = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(tmp32, cpu_fpscr);
+        gen_op_mtcr(4, tmp32, FPSCR_OX);
+        tcg_temp_free_i32(tmp32);
     }
     /* We can raise a differed exception */
     gen_helper_float_check_status(cpu_env);
@@ -2421,8 +2444,10 @@ static void gen_mtfsfi(DisasContext *ctx)
     tcg_temp_free_i64(t0);
     tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
-        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
+        TCGv_i32 tmp32 = tcg_temp_new_i32();
+        tcg_gen_trunc_tl_i32(tmp32, cpu_fpscr);
+        gen_op_mtcr(4, tmp32, FPSCR_OX);
+        tcg_temp_free_i32(tmp32);
     }
     /* We can raise a differed exception */
     gen_helper_float_check_status(cpu_env);
@@ -3927,10 +3952,10 @@ static void gen_mfcr(DisasContext *ctx)
     if (likely(ctx->opcode & 0x00100000)) {
         crm = CRM(ctx->opcode);
         if (likely(crm && ((crm & (crm - 1)) == 0))) {
+            TCGv_i32 t0 = tcg_temp_new_i32();
             crn = ctz32 (crm);
-            tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], cpu_crf[7 - crn]);
-            tcg_gen_shli_tl(cpu_gpr[rD(ctx->opcode)],
-                            cpu_gpr[rD(ctx->opcode)], crn * 4);
+            gen_op_mfcr(t0, (7 - crn) * 4, crn * 4);
+            tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);
         }
     } else {
         gen_helper_mfocrf(cpu_gpr[rD(ctx->opcode)], cpu_env);
@@ -4023,8 +4048,7 @@ static void gen_mtcrf(DisasContext *ctx)
             TCGv_i32 temp = tcg_temp_new_i32();
             crn = ctz32 (crm);
             tcg_gen_trunc_tl_i32(temp, cpu_gpr[rS(ctx->opcode)]);
-            tcg_gen_shri_i32(temp, temp, crn * 4);
-            tcg_gen_andi_i32(cpu_crf[7 - crn], temp, 0xf);
+            gen_op_mtcr((7 - crn) * 4, temp, crn * 4);
             tcg_temp_free_i32(temp);
         }
     } else {

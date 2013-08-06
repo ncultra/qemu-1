@@ -1222,6 +1222,70 @@ static void tcg_out_cr7eq_from_cond (TCGContext *s, const TCGArg *args,
     }
 }
 
+static void tcg_out_and (TCGContext *s, TCGArg arg0, TCGArg arg1, TCGArg arg2,
+                         int const_arg2)
+{
+    if (const_arg2) {
+        uint32_t c;
+
+        c = arg2;
+
+        if (!c) {
+            tcg_out_movi (s, TCG_TYPE_I32, arg0, 0);
+            return;
+        }
+#ifdef __PPU__
+        uint32_t t, n;
+        int mb, me;
+
+        n = c ^ -(c & 1);
+        t = n + (n & -n);
+
+        if ((t & (t - 1)) == 0) {
+            int lzc, tzc;
+
+            if ((c & 0x80000001) == 0x80000001) {
+                lzc = clz32 (n);
+                tzc = ctz32 (n);
+
+                mb = 32 - tzc;
+                me = lzc - 1;
+            }
+            else {
+                lzc = clz32 (c);
+                tzc = ctz32 (c);
+
+                mb = lzc;
+                me = 31 - tzc;
+            }
+
+            tcg_out32 (s, (RLWINM
+                           | RA (arg0)
+                           | RS (arg1)
+                           | SH (0)
+                           | MB (mb)
+                           | ME (me)
+                           )
+                );
+        }
+        else
+#endif /* !__PPU__ */
+        {
+            if ((c & 0xffff) == c)
+                tcg_out32 (s, ANDI | RS (arg1) | RA (arg0) | c);
+            else if ((c & 0xffff0000) == c)
+                tcg_out32 (s, ANDIS | RS (arg1) | RA (arg0)
+                           | ((c >> 16) & 0xffff));
+            else {
+                tcg_out_movi (s, TCG_TYPE_I32, 0, c);
+                tcg_out32 (s, AND | SAB (arg1, arg0, 0));
+            }
+        }
+    } else {
+        tcg_out32 (s, AND | SAB (arg1, arg0, arg2));
+    }
+}
+
 static void tcg_out_xor (TCGContext *s, TCGArg arg0, TCGArg arg1, TCGArg arg2,
                          int const_arg2)
 {
@@ -1561,65 +1625,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_and_i32:
-        if (const_args[2]) {
-            uint32_t c;
-
-            c = args[2];
-
-            if (!c) {
-                tcg_out_movi (s, TCG_TYPE_I32, args[0], 0);
-                break;
-            }
-#ifdef __PPU__
-            uint32_t t, n;
-            int mb, me;
-
-            n = c ^ -(c & 1);
-            t = n + (n & -n);
-
-            if ((t & (t - 1)) == 0) {
-                int lzc, tzc;
-
-                if ((c & 0x80000001) == 0x80000001) {
-                    lzc = clz32 (n);
-                    tzc = ctz32 (n);
-
-                    mb = 32 - tzc;
-                    me = lzc - 1;
-                }
-                else {
-                    lzc = clz32 (c);
-                    tzc = ctz32 (c);
-
-                    mb = lzc;
-                    me = 31 - tzc;
-                }
-
-                tcg_out32 (s, (RLWINM
-                               | RA (args[0])
-                               | RS (args[1])
-                               | SH (0)
-                               | MB (mb)
-                               | ME (me)
-                               )
-                    );
-            }
-            else
-#endif /* !__PPU__ */
-            {
-                if ((c & 0xffff) == c)
-                    tcg_out32 (s, ANDI | RS (args[1]) | RA (args[0]) | c);
-                else if ((c & 0xffff0000) == c)
-                    tcg_out32 (s, ANDIS | RS (args[1]) | RA (args[0])
-                               | ((c >> 16) & 0xffff));
-                else {
-                    tcg_out_movi (s, TCG_TYPE_I32, 0, c);
-                    tcg_out32 (s, AND | SAB (args[1], args[0], 0));
-                }
-            }
-        }
-        else
-            tcg_out32 (s, AND | SAB (args[1], args[0], args[2]));
+        tcg_out_and (s, args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_or_i32:
         if (const_args[2]) {

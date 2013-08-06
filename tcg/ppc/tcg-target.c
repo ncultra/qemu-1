@@ -1355,24 +1355,11 @@ static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
 
     switch (cond) {
     case TCG_COND_EQ:
-        if (const_arg2) {
-            if (!arg2) {
-                arg = arg1;
-            }
-            else {
-                arg = 0;
-                if ((uint16_t) arg2 == arg2) {
-                    tcg_out32 (s, XORI | RS (arg1) | RA (0) | arg2);
-                }
-                else {
-                    tcg_out_movi (s, TCG_TYPE_I32, 0, arg2);
-                    tcg_out32 (s, XOR | SAB (arg1, 0, 0));
-                }
-            }
-        }
-        else {
+        if (const_arg2 && !arg2) {
+            arg = arg1;
+        } else {
             arg = 0;
-            tcg_out32 (s, XOR | SAB (arg1, 0, arg2));
+            tcg_out_xor (s, 0, arg1, arg2, const_arg2);
         }
         tcg_out32 (s, CNTLZW | RS (arg) | RA (0));
         tcg_out32 (s, (RLWINM
@@ -1386,24 +1373,11 @@ static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
         break;
 
     case TCG_COND_NE:
-        if (const_arg2) {
-            if (!arg2) {
-                arg = arg1;
-            }
-            else {
-                arg = 0;
-                if ((uint16_t) arg2 == arg2) {
-                    tcg_out32 (s, XORI | RS (arg1) | RA (0) | arg2);
-                }
-                else {
-                    tcg_out_movi (s, TCG_TYPE_I32, 0, arg2);
-                    tcg_out32 (s, XOR | SAB (arg1, 0, 0));
-                }
-            }
-        }
-        else {
+        if (const_arg2 && !arg2) {
+            arg = arg1;
+        } else {
             arg = 0;
-            tcg_out32 (s, XOR | SAB (arg1, 0, arg2));
+            tcg_out_xor (s, 0, arg1, arg2, const_arg2);
         }
 
         if (arg == arg1 && arg1 == arg0) {

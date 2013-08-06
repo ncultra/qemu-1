@@ -172,6 +172,28 @@ target_ulong helper_popcntw(target_ulong val)
 }
 #endif
 
+void helper_mtocrf(CPUPPCState *env, target_ulong cr, uint32_t mask)
+{
+    int i;
+    for (i = 7; i >= 0; i--) {
+        if (mask & 1) {
+            env->crf[i] = cr & 0x0F;
+        }
+        cr >>= 4;
+        mask >>= 1;
+    }
+}
+
+target_ulong helper_mfocrf(CPUPPCState *env)
+{
+    uint32_t cr = 0;
+    int i;
+    for (i = 0; i < 8; i++) {
+        cr |= env->crf[i] << (32 - (i + 1) * 4);
+    }
+    return cr;
+}
+
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
 target_ulong helper_div(CPUPPCState *env, target_ulong arg1, target_ulong arg2)

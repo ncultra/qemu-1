@@ -241,21 +241,19 @@ static inline void gen_compute_fprf(TCGv_i64 arg, int set_fprf, int set_rc)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
 
-    if (set_fprf != 0) {
-        /* This case might be optimized later */
-        tcg_gen_movi_i32(t0, 1);
-        gen_helper_compute_fprf(t0, cpu_env, arg, t0);
-        if (unlikely(set_rc)) {
-            tcg_gen_mov_i32(cpu_crf[1], t0);
-        }
-        gen_helper_float_check_status(cpu_env);
-    } else if (unlikely(set_rc)) {
-        /* We always need to compute fpcc */
-        tcg_gen_movi_i32(t0, 0);
-        gen_helper_compute_fprf(t0, cpu_env, arg, t0);
+    if (set_fprf == 0 && !set_rc) {
+        return;
+    }
+
+    tcg_gen_movi_i32(t0, set_fprf != 0);
+    gen_helper_compute_fprf(t0, cpu_env, arg, t0);
+    if (set_rc) {
         tcg_gen_mov_i32(cpu_crf[1], t0);
     }
 
+    if (set_fprf != 0) {
+        gen_helper_float_check_status(cpu_env);
+    }
     tcg_temp_free_i32(t0);
 }
 

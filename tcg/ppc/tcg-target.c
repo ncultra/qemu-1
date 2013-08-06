@@ -1222,6 +1222,49 @@ static void tcg_out_cr7eq_from_cond (TCGContext *s, const TCGArg *args,
     }
 }
 
+static void tcg_out_shl (TCGContext *s, TCGArg arg0, TCGArg arg1, TCGArg arg2,
+                         int const_arg2)
+{
+    if (const_arg2) {
+        tcg_out32 (s, (RLWINM
+                       | RA (arg0)
+                       | RS (arg1)
+                       | SH (arg2)
+                       | MB (0)
+                       | ME (31 - arg2)
+                       )
+            );
+    }
+    else
+        tcg_out32 (s, SLW | SAB (arg1, arg0, arg2));
+}
+
+static void tcg_out_shr (TCGContext *s, TCGArg arg0, TCGArg arg1, TCGArg arg2,
+                         int const_arg2)
+{
+    if (const_arg2) {
+        tcg_out32 (s, (RLWINM
+                       | RA (arg0)
+                       | RS (arg1)
+                       | SH (32 - arg2)
+                       | MB (arg2)
+                       | ME (31)
+                       )
+            );
+    }
+    else
+        tcg_out32 (s, SRW | SAB (arg1, arg0, arg2));
+}
+
+static void tcg_out_sar (TCGContext *s, TCGArg arg0, TCGArg arg1, TCGArg arg2,
+                         int const_arg2)
+{
+    if (const_arg2)
+        tcg_out32 (s, SRAWI | RS (arg1) | RA (arg0) | SH (arg2));
+    else
+        tcg_out32 (s, SRAW | SAB (arg1, arg0, arg2));
+}
+
 static void tcg_out_and (TCGContext *s, TCGArg arg0, TCGArg arg1, TCGArg arg2,
                          int const_arg2)
 {
@@ -1698,38 +1741,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_shl_i32:
-        if (const_args[2]) {
-            tcg_out32 (s, (RLWINM
-                           | RA (args[0])
-                           | RS (args[1])
-                           | SH (args[2])
-                           | MB (0)
-                           | ME (31 - args[2])
-                           )
-                );
-        }
-        else
-            tcg_out32 (s, SLW | SAB (args[1], args[0], args[2]));
+        tcg_out_shl(s, args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_shr_i32:
-        if (const_args[2]) {
-            tcg_out32 (s, (RLWINM
-                           | RA (args[0])
-                           | RS (args[1])
-                           | SH (32 - args[2])
-                           | MB (args[2])
-                           | ME (31)
-                           )
-                );
-        }
-        else
-            tcg_out32 (s, SRW | SAB (args[1], args[0], args[2]));
+        tcg_out_shr(s, args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_sar_i32:
-        if (const_args[2])
-            tcg_out32 (s, SRAWI | RS (args[1]) | RA (args[0]) | SH (args[2]));
-        else
-            tcg_out32 (s, SRAW | SAB (args[1], args[0], args[2]));
+        tcg_out_sar(s, args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_rotl_i32:
         {

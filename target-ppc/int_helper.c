@@ -1488,7 +1488,7 @@ target_ulong helper_dlmzb(CPUPPCState *env, target_ulong high,
  done:
     env->xer = (env->xer & ~0x7F) | i;
     if (update_Rc) {
-        env->crf[0] |= xer_so;
+        env->cr[CRF_SO] = xer_so;
     }
     return i;
 }

@@ -1047,8 +1047,8 @@ void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
     }
 
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
-    env->fpscr |= (0x01 << FPSCR_FPRF) << ret;
-    ppc_set_crf(env, crfD, 1 << ret);
+    env->fpscr |= (0x08 << FPSCR_FPRF) >> ret;
+    ppc_set_crf(env, crfD, 0x08 >> ret);
 
     if (unlikely(ret == CRF_SO
                  && (float64_is_signaling_nan(farg1.d) ||
@@ -1079,8 +1079,8 @@ void helper_fcmpo(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
     }
 
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
-    env->fpscr |= (0x01 << FPSCR_FPRF) << ret;
-    ppc_set_crf(env, crfD, 1 << ret);
+    env->fpscr |= (0x08 << FPSCR_FPRF) >> ret;
+    ppc_set_crf(env, crfD, 0x08 >> ret);
 
     if (unlikely(ret == CRF_SO)) {
         if (float64_is_signaling_nan(farg1.d) ||
@@ -1352,7 +1352,7 @@ static inline uint32_t efscmplt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 
     u1.l = op1;
     u2.l = op2;
-    return float32_lt(u1.f, u2.f, &env->vec_status) ? 4 : 0;
+    return float32_lt(u1.f, u2.f, &env->vec_status);
 }
 
 static inline uint32_t efscmpgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
@@ -1361,7 +1361,7 @@ static inline uint32_t efscmpgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 
     u1.l = op1;
     u2.l = op2;
-    return float32_le(u1.f, u2.f, &env->vec_status) ? 0 : 4;
+    return !float32_le(u1.f, u2.f, &env->vec_status);
 }
 
 static inline uint32_t efscmpeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
@@ -1370,7 +1370,7 @@ static inline uint32_t efscmpeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
 
     u1.l = op1;
     u2.l = op2;
-    return float32_eq(u1.f, u2.f, &env->vec_status) ? 4 : 0;
+    return float32_eq(u1.f, u2.f, &env->vec_status);
 }
 
 static inline uint32_t efststlt(CPUPPCState *env, uint32_t op1, uint32_t op2)
@@ -1413,25 +1413,6 @@ static inline uint32_t evcmp_merge(int t0, int t1)
 {
     return (t0 << 3) | (t1 << 2) | ((t0 | t1) << 1) | (t0 & t1);
 }
-
-#define HELPER_VECTOR_SPE_CMP(name)                                     \
-    uint32_t helper_ev##name(CPUPPCState *env, uint64_t op1, uint64_t op2) \
-    {                                                                   \
-        return evcmp_merge(e##name(env, op1 >> 32, op2 >> 32),          \
-                           e##name(env, op1, op2));                     \
-    }
-/* evfststlt */
-HELPER_VECTOR_SPE_CMP(fststlt);
-/* evfststgt */
-HELPER_VECTOR_SPE_CMP(fststgt);
-/* evfststeq */
-HELPER_VECTOR_SPE_CMP(fststeq);
-/* evfscmplt */
-HELPER_VECTOR_SPE_CMP(fscmplt);
-/* evfscmpgt */
-HELPER_VECTOR_SPE_CMP(fscmpgt);
-/* evfscmpeq */
-HELPER_VECTOR_SPE_CMP(fscmpeq);
 
 /* Double-precision floating-point conversion */
 uint64_t helper_efdcfsi(CPUPPCState *env, uint32_t val)
@@ -1674,7 +1655,7 @@ uint32_t helper_efdtstlt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 
     u1.ll = op1;
     u2.ll = op2;
-    return float64_lt(u1.d, u2.d, &env->vec_status) ? 4 : 0;
+    return float64_lt(u1.d, u2.d, &env->vec_status);
 }
 
 uint32_t helper_efdtstgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
@@ -1683,7 +1664,7 @@ uint32_t helper_efdtstgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 
     u1.ll = op1;
     u2.ll = op2;
-    return float64_le(u1.d, u2.d, &env->vec_status) ? 0 : 4;
+    return !float64_le(u1.d, u2.d, &env->vec_status);
 }
 
 uint32_t helper_efdtsteq(CPUPPCState *env, uint64_t op1, uint64_t op2)
@@ -1692,7 +1673,7 @@ uint32_t helper_efdtsteq(CPUPPCState *env, uint64_t op1, uint64_t op2)
 
     u1.ll = op1;
     u2.ll = op2;
-    return float64_eq_quiet(u1.d, u2.d, &env->vec_status) ? 4 : 0;
+    return float64_eq_quiet(u1.d, u2.d, &env->vec_status);
 }
 
 uint32_t helper_efdcmplt(CPUPPCState *env, uint64_t op1, uint64_t op2)

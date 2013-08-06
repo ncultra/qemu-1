@@ -130,6 +130,10 @@ static void cpu_pre_save(void *opaque)
     CPUPPCState *env = &cpu->env;
     int i;
 
+    for (i = 0; i < 8; i++) {
+        env->crf[i] = ppc_get_crf(env, i);
+    }
+
     env->spr[SPR_LR] = env->lr;
     env->spr[SPR_CTR] = env->ctr;
     env->spr[SPR_XER] = env->xer;
@@ -157,6 +161,10 @@ static int cpu_post_load(void *opaque, int version_id)
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
     int i;
+
+    for (i = 0; i < 8; i++) {
+        ppc_set_crf(env, i, env->crf[i]);
+    }
 
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];

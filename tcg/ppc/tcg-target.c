@@ -1351,7 +1351,32 @@ static void tcg_out_xor (TCGContext *s, TCGArg arg0, TCGArg arg1, TCGArg arg2,
 static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
                              TCGArg arg1, TCGArg arg2, int const_arg2)
 {
+    TCGv t;
     int crop, sh, arg;
+
+    if (cond == TCG_COND_LTU || cond == TCG_COND_GEU) {
+        if (const_arg2) {
+            /* If arg2 is constant, the LEU and GTU sequences use subfic and
+             * do not work quite as well for LTU and GEU. Subtract one from
+             * the constant and use LEU and GTU.
+             */
+            if (!arg2) {
+                tcg_out_movi(s, TCG_TYPE_I32, arg0, (cond == TCG_COND_GEU));
+                return;
+            }
+            if ((int16_t)(arg2 - 1) == (arg2 - 1)) {
+               arg2--;
+               /* LTU -> LEU, GEU -> GTU */
+               cond = tcg_invert_cond(tcg_swap_cond(cond));
+            }
+        } else {
+           /* Swap and fall through */
+           t = arg2;
+           arg2 = arg1;
+           arg1 = t;
+           cond = tcg_swap_cond(cond);
+        }
+    }
 
     switch (cond) {
     case TCG_COND_EQ:
@@ -1390,8 +1415,38 @@ static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
         }
         break;
 
-    case TCG_COND_GT:
     case TCG_COND_GTU:
+        /* subfc arg0, arg1, arg2; subfe arg0, arg0, arg0; andi arg0, arg0, 1 */
+        if (const_arg2) {
+            if ((int16_t)arg2 != arg2) {
+                goto mfcr_gt;
+            } else {
+                tcg_out32 (s, SUBFIC | RT (arg0) | RA (arg1) | (arg2 & 0xffff));
+            }
+        } else {
+            tcg_out32 (s, SUBFC | TAB (arg0, arg1, arg2));
+        }
+        tcg_out32 (s, SUBFE | TAB(arg0, arg0, arg0));
+        tcg_out_and (s, arg0, arg0, 1, true);
+        break;
+
+    case TCG_COND_LEU:
+        /* subfc arg0, arg1, arg2; li arg0, 0; adde arg0, arg0, arg0 */
+        if (const_arg2) {
+            if ((int16_t)arg2 != arg2) {
+                goto mfcr_le;
+            } else {
+                tcg_out32 (s, SUBFIC | RT (arg0) | RA (arg1) | (arg2 & 0xffff));
+            }
+        } else {
+            tcg_out32 (s, SUBFC | TAB (arg0, arg1, arg2));
+        }
+        tcg_out_movi (s, TCG_TYPE_I32, arg0, 0);
+        tcg_out32 (s, ADDE | TAB(arg0, arg0, arg0));
+        break;
+
+    case TCG_COND_GT:
+    mfcr_gt:
         sh = 30;
         crop = 0;
         goto crtest;
@@ -1409,7 +1464,7 @@ static void tcg_out_setcond (TCGContext *s, TCGCond cond, TCGArg arg0,
         goto crtest;
 
     case TCG_COND_LE:
-    case TCG_COND_LEU:
+    mfcr_le:
         sh = 31;
         crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_GT) | BB (7, CR_GT);
     crtest:

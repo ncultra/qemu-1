@@ -1037,19 +1037,19 @@ void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
 
     if (unlikely(float64_is_any_nan(farg1.d) ||
                  float64_is_any_nan(farg2.d))) {
-        ret = 0x01UL;
+        ret = CRF_SO;
     } else if (float64_lt(farg1.d, farg2.d, &env->fp_status)) {
-        ret = 0x08UL;
+        ret = CRF_LT;
     } else if (!float64_le(farg1.d, farg2.d, &env->fp_status)) {
-        ret = 0x04UL;
+        ret = CRF_GT;
     } else {
-        ret = 0x02UL;
+        ret = CRF_EQ;
     }
 
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
-    env->fpscr |= ret << FPSCR_FPRF;
-    env->crf[crfD] = ret;
-    if (unlikely(ret == 0x01UL
+    env->fpscr |= (0x01 << FPSCR_FPRF) << ret;
+    env->crf[crfD] = (1 << ret);
+    if (unlikely(ret == CRF_SO
                  && (float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d)))) {
         /* sNaN comparison */
@@ -1068,19 +1068,19 @@ void helper_fcmpo(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
 
     if (unlikely(float64_is_any_nan(farg1.d) ||
                  float64_is_any_nan(farg2.d))) {
-        ret = 0x01UL;
+        ret = CRF_SO;
     } else if (float64_lt(farg1.d, farg2.d, &env->fp_status)) {
-        ret = 0x08UL;
+        ret = CRF_LT;
     } else if (!float64_le(farg1.d, farg2.d, &env->fp_status)) {
-        ret = 0x04UL;
+        ret = CRF_GT;
     } else {
-        ret = 0x02UL;
+        ret = CRF_EQ;
     }
 
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
-    env->fpscr |= ret << FPSCR_FPRF;
-    env->crf[crfD] = ret;
-    if (unlikely(ret == 0x01UL)) {
+    env->fpscr |= (0x01 << FPSCR_FPRF) << ret;
+    env->crf[crfD] = (1 << ret);
+    if (unlikely(ret == CRF_SO)) {
         if (float64_is_signaling_nan(farg1.d) ||
             float64_is_signaling_nan(farg2.d)) {
             /* sNaN comparison */

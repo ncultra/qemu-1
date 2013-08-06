@@ -795,7 +795,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     regs.cr = 0;
     for (i = 0; i < 8; i++) {
-        regs.cr |= (env->crf[i] & 15) << (4 * (7 - i));
+        regs.cr |= ppc_get_crf(env, i) << (4 * (7 - i));
     }
 
     ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
@@ -890,7 +890,7 @@ int kvm_arch_get_registers(CPUState *cs)
 
     cr = regs.cr;
     for (i = 7; i >= 0; i--) {
-        env->crf[i] = cr & 15;
+        ppc_set_crf(env->cr[i], cr & 15);
         cr >>= 4;
     }
 

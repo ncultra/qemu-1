@@ -54,7 +54,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
                 uint32_t cr = 0;
                 int i;
                 for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
-                    cr |= env->crf[i] << (32 - ((i + 1) * 4));
+                    cr |= ppc_get_crf(env, i) << (32 - ((i + 1) * 4));
                 }
                 return gdb_get_reg32(mem_buf, cr);
             }
@@ -105,7 +105,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
                 uint32_t cr = ldl_p(mem_buf);
                 int i;
                 for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
-                    env->crf[i] = (cr >> (32 - ((i + 1) * 4))) & 0xF;
+                    ppc_set_crf(env, i, (cr >> (32 - ((i + 1) * 4))) & 0xF);
                 }
                 return 4;
             }

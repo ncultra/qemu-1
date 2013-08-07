@@ -1145,6 +1145,10 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 for (i = 0; i < def->nb_oargs; i++) {
                     reset_temp(args[i]);
                 }
+                if (mask != -1) {
+                    assert(def->nb_oargs >= 1);
+                    temps[args[0]].mask = mask;
+                }
             }
             for (i = 0; i < def->nb_args; i++) {
                 gen_args[i] = args[i];

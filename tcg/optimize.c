@@ -821,10 +821,10 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
-        /* Simplify expression for "op r, a, a => mov r, a" cases */
         switch (op) {
         CASE_OP_32_64(or):
         CASE_OP_32_64(and):
+            /* Simplify expression for "op r, a, a => mov r, a" cases */
             if (temps_are_copies(args[1], args[2])) {
                 if (temps_are_copies(args[0], args[1])) {
                     s->gen_opc_buf[op_index] = INDEX_op_nop;
@@ -837,14 +837,10 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 continue;
             }
             break;
-        default:
-            break;
-        }
 
-        /* Simplify expression for "op r, a, a => movi r, 0" cases */
-        switch (op) {
         CASE_OP_32_64(sub):
         CASE_OP_32_64(xor):
+            /* Simplify expression for "op r, a, a => movi r, 0" cases */
             if (temps_are_copies(args[1], args[2])) {
                 s->gen_opc_buf[op_index] = op_to_movi(op);
                 tcg_opt_gen_movi(gen_args, args[0], 0);
@@ -853,6 +849,32 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 continue;
             }
             break;
+
+        CASE_OP_32_64(deposit):
+            /* Simplify deposit to mov if other bits are known-zero.
+             * TODO: relax args[3] == 0 condition and simplify to shl.
+             * Also simplify to and or or if args[2] is all-zeroes
+             * (looking at mask) or constant and all-ones.
+             */
+            if (args[3] == 0 &&
+                (temps[args[1]].mask >> args[4]) == 0 &&
+                (temps[args[2]].mask >> args[4]) == 0) {
+                if (temps_are_copies(args[0], args[2])) {
+                    s->gen_opc_buf[op_index] = INDEX_op_nop;
+                } else if (temps[args[2]].state == TCG_TEMP_CONST) {
+                    s->gen_opc_buf[op_index] = op_to_movi(op);
+                    tcg_opt_gen_movi(gen_args, args[0], temps[args[2]].val);
+                    gen_args += 2;
+                } else {
+                    s->gen_opc_buf[op_index] = op_to_mov(op);
+                    tcg_opt_gen_mov(s, gen_args, args[0], args[2]);
+                    gen_args += 2;
+                }
+                args += 5;
+                continue;
+            }
+            break;
+
         default:
             break;
         }

@@ -331,7 +331,9 @@ static int cpu_common_post_load(void *opaque, int version_id)
     /* 0x01 was CPU_INTERRUPT_EXIT. This line can be removed when the
        version_id is increased. */
     cpu->interrupt_request &= ~0x01;
-    tlb_flush(cpu->env_ptr, 1);
+    if (tcg_enabled()) {
+        cpu->interrupt_request |= CPU_INTERRUPT_TLBFLUSH;
+    }
 
     return 0;
 }
@@ -1720,12 +1722,12 @@ static void tcg_commit(MemoryListener *listener)
     CPUState *cpu;
 
     /* since each CPU stores ram addresses in its TLB cache, we must
-       reset the modified entries */
-    /* XXX: slow ! */
+     * reset the modified entries.  Do this in cpu-exec.c so that
+     * the cached AddressSpaceDispatch will be updated too.
+     * RCU grace period started.
+     */
     CPU_FOREACH(cpu) {
-        CPUArchState *env = cpu->env_ptr;
-
-        tlb_flush(env, 1);
+        cpu_interrupt(cpu, CPU_INTERRUPT_TLBFLUSH|CPU_INTERRUPT_EXITTB);
     }
 }
 

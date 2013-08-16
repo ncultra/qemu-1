@@ -148,13 +148,17 @@ struct kvm_run;
    makes some change to the memory mapping.  E.g. the a20 line change.  */
 #define CPU_INTERRUPT_EXITTB      0x0004
 
+/* Force a TLB flush.  Used together with CPU_INTERRUPT_EXITTB when
+   the memory mapping changes.  */
+#define CPU_INTERRUPT_TLBFLUSH    0x4000
+
 /* Halt the CPU.  */
 #define CPU_INTERRUPT_HALT        0x0020
 
 /* Debug event pending.  */
 #define CPU_INTERRUPT_DEBUG       0x0080
 
-/* See also include/exec/cpu-all.h.  First unused bit: 0x4000.  */
+/* See also include/exec/cpu-all.h.  First unused bit: 0x8000.  */
 
 /**
  * CPUState:

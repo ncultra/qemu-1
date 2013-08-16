@@ -388,7 +388,7 @@ void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
 #define CPU_INTERRUPT_TGT_INT_2   0x0800
 #define CPU_INTERRUPT_TGT_INT_3   0x2000
 
-/* See also include/qom/cpu.h.  First unused bit: 0x4000.  */
+/* See also include/qom/cpu.h.  First unused bit: 0x8000.  */
 
 /* The set of all bits that should be masked when single-stepping.  */
 #define CPU_INTERRUPT_SSTEP_MASK \

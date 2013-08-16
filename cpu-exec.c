@@ -573,6 +573,12 @@ int cpu_exec(CPUArchState *env)
                            the program flow was changed */
                         next_tb = 0;
                     }
+#if !defined(CONFIG_USER_ONLY)
+                    if (interrupt_request & CPU_INTERRUPT_TLBFLUSH) {
+                        cpu->interrupt_request &= ~CPU_INTERRUPT_TLBFLUSH;
+                        tlb_flush(env, 1);
+                    }
+#endif
                 }
                 if (unlikely(cpu->exit_request)) {
                     cpu->exit_request = 0;

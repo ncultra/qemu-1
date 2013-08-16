@@ -196,7 +196,7 @@ static void cpu_common_reset(CPUState *cpu)
     }
 
     cpu->exit_request = 0;
-    cpu->interrupt_request = 0;
+    cpu->interrupt_request = tcg_enabled() ? CPU_INTERRUPT_TLBFLUSH : 0;
     cpu->current_tb = NULL;
     cpu->halted = 0;
 }

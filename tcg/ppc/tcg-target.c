@@ -573,29 +573,29 @@ static const void * const qemu_st_helpers[4] = {
 static void *ld_trampolines[4];
 static void *st_trampolines[4];
 
-static void tcg_out_tlb_check (TCGContext *s, int r0, int r1, int r2,
+static void tcg_out_tlb_check (TCGContext *s, int t1, int t2,
                                int addr_reg, int addr_reg2, int s_bits,
                                int offset1, int offset2, uint8_t **label_ptr)
 {
     uint16_t retranst;
 
     tcg_out32 (s, (RLWINM
-                   | RA (r0)
+                   | RA (t1)
                    | RS (addr_reg)
                    | SH (32 - (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS))
                    | MB (32 - (CPU_TLB_BITS + CPU_TLB_ENTRY_BITS))
                    | ME (31 - CPU_TLB_ENTRY_BITS)
                    )
         );
-    tcg_out32 (s, ADD | RT (r0) | RA (r0) | RB (TCG_AREG0));
+    tcg_out32 (s, ADD | RT (t1) | RA (t1) | RB (TCG_AREG0));
     tcg_out32 (s, (LWZU
-                   | RT (r1)
-                   | RA (r0)
+                   | RT (t2)
+                   | RA (t1)
                    | offset1
                    )
         );
     tcg_out32 (s, (RLWINM
-                   | RA (r2)
+                   | RA (0)
                    | RS (addr_reg)
                    | SH (0)
                    | MB ((32 - s_bits) & 31)
@@ -603,26 +603,26 @@ static void tcg_out_tlb_check (TCGContext *s, int r0, int r1, int r2,
                    )
         );
 
-    tcg_out32 (s, CMP | BF (7) | RA (r2) | RB (r1));
+    tcg_out32 (s, CMP | BF (7) | RA (0) | RB (t2));
 #if TARGET_LONG_BITS == 64
-    tcg_out32 (s, LWZ | RT (r1) | RA (r0) | 4);
-    tcg_out32 (s, CMP | BF (6) | RA (addr_reg2) | RB (r1));
+    tcg_out32 (s, LWZ | RT (t2) | RA (t1) | 4);
+    tcg_out32 (s, CMP | BF (6) | RA (addr_reg2) | RB (t2));
     tcg_out32 (s, CRAND | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, CR_EQ));
 #endif
     *label_ptr = s->code_ptr;
     retranst = ((uint16_t *) s->code_ptr)[1] & ~3;
     tcg_out32 (s, BC | BI (7, CR_EQ) | retranst | BO_COND_FALSE);
 
-    /* r0 now contains &env->tlb_table[mem_index][index].addr_x */
+    /* t1 now contains &env->tlb_table[mem_index][index].addr_x */
     tcg_out32 (s, (LWZ
-                   | RT (r0)
-                   | RA (r0)
+                   | RT (t1)
+                   | RA (t1)
                    | offset2
                    )
         );
-    /* r0 = env->tlb_table[mem_index][index].addend */
-    tcg_out32 (s, ADD | RT (r0) | RA (r0) | RB (addr_reg));
-    /* r0 = env->tlb_table[mem_index][index].addend + addr */
+    /* t1 = env->tlb_table[mem_index][index].addend */
+    tcg_out32 (s, ADD | RT (t1) | RA (t1) | RB (addr_reg));
+    /* t1 = env->tlb_table[mem_index][index].addend + addr */
 
 }
 #endif
@@ -631,7 +631,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
     int addr_reg, data_reg, data_reg2, r0, r1, rbase, bswap;
 #ifdef CONFIG_SOFTMMU
-    int mem_index, s_bits, r2, addr_reg2;
+    int mem_index, s_bits, addr_reg2;
     uint8_t *label_ptr;
 #endif
 
@@ -652,11 +652,10 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     s_bits = opc & 3;
     r0 = 3;
     r1 = 4;
-    r2 = 0;
     rbase = 0;
 
     tcg_out_tlb_check (
-        s, r0, r1, r2, addr_reg, addr_reg2, s_bits,
+        s, r0, r1, addr_reg, addr_reg2, s_bits,
         offsetof (CPUArchState, tlb_table[mem_index][0].addr_read),
         offsetof (CPUTLBEntry, addend) - offsetof (CPUTLBEntry, addr_read),
         &label_ptr
@@ -744,7 +743,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 {
     int addr_reg, r0, r1, data_reg, data_reg2, bswap, rbase;
 #ifdef CONFIG_SOFTMMU
-    int mem_index, r2, addr_reg2;
+    int mem_index, addr_reg2;
     uint8_t *label_ptr;
 #endif
 
@@ -764,11 +763,10 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     mem_index = *args;
     r0 = 3;
     r1 = 4;
-    r2 = 0;
     rbase = 0;
 
     tcg_out_tlb_check (
-        s, r0, r1, r2, addr_reg, addr_reg2, opc & 3,
+        s, r0, r1, addr_reg, addr_reg2, opc & 3,
         offsetof (CPUArchState, tlb_table[mem_index][0].addr_write),
         offsetof (CPUTLBEntry, addend) - offsetof (CPUTLBEntry, addr_write),
         &label_ptr

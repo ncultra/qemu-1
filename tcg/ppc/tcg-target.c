@@ -607,25 +607,29 @@ static void tcg_out_tlb_check (TCGContext *s, int t1, int t2,
         );
 
     tcg_out32 (s, CMP | BF (7) | RA (0) | RB (t2));
-#if TARGET_LONG_BITS == 64
-    tcg_out32 (s, LWZ | RT (t2) | RA (t1) | 4);
-    tcg_out32 (s, CMP | BF (6) | RA (addr_reg2) | RB (t2));
-    tcg_out32 (s, CRAND | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, CR_EQ));
-#endif
-    *label_ptr = s->code_ptr;
-    retranst = ((uint16_t *) s->code_ptr)[1] & ~3;
-    tcg_out32 (s, BC | BI (7, CR_EQ) | retranst | BO_COND_FALSE);
 
-    /* t1 = env->tlb_table[mem_index][index].addend */
+    /* r0 = env->tlb_table[mem_index][index].addend */
     tcg_out32 (s, (LWZ
-                   | RT (t1)
+                   | RT (0)
                    | RA (t1)
                    | offset2
                    )
         );
 
+#if TARGET_LONG_BITS == 64
+    tcg_out32 (s, LWZ | RT (t2) | RA (t1) | 4);
+    tcg_out32 (s, CMP | BF (6) | RA (addr_reg2) | RB (t2));
+#endif
+
     /* t1 = env->tlb_table[mem_index][index].addend + addr */
-    tcg_out32 (s, ADD | RT (t1) | RA (t1) | RB (addr_reg));
+    tcg_out32 (s, ADD | RT (t1) | RA (0) | RB (addr_reg));
+
+#if TARGET_LONG_BITS == 64
+    tcg_out32 (s, CRAND | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, CR_EQ));
+#endif
+    *label_ptr = s->code_ptr;
+    retranst = ((uint16_t *) s->code_ptr)[1] & ~3;
+    tcg_out32 (s, BC | BI (7, CR_EQ) | retranst | BO_COND_FALSE);
 }
 #endif
 

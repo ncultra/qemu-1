@@ -587,7 +587,10 @@ static void tcg_out_tlb_check (TCGContext *s, int t1, int t2,
                    | ME (31 - CPU_TLB_ENTRY_BITS)
                    )
         );
+
+    /* t1 = &env->tlb_table[mem_index][index].addr_x */
     tcg_out32 (s, ADD | RT (t1) | RA (t1) | RB (TCG_AREG0));
+
     tcg_out32 (s, (LWZU
                    | RT (t2)
                    | RA (t1)
@@ -613,17 +616,16 @@ static void tcg_out_tlb_check (TCGContext *s, int t1, int t2,
     retranst = ((uint16_t *) s->code_ptr)[1] & ~3;
     tcg_out32 (s, BC | BI (7, CR_EQ) | retranst | BO_COND_FALSE);
 
-    /* t1 now contains &env->tlb_table[mem_index][index].addr_x */
+    /* t1 = env->tlb_table[mem_index][index].addend */
     tcg_out32 (s, (LWZ
                    | RT (t1)
                    | RA (t1)
                    | offset2
                    )
         );
-    /* t1 = env->tlb_table[mem_index][index].addend */
-    tcg_out32 (s, ADD | RT (t1) | RA (t1) | RB (addr_reg));
-    /* t1 = env->tlb_table[mem_index][index].addend + addr */
 
+    /* t1 = env->tlb_table[mem_index][index].addend + addr */
+    tcg_out32 (s, ADD | RT (t1) | RA (t1) | RB (addr_reg));
 }
 #endif
 

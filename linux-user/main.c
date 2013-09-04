@@ -1324,7 +1324,10 @@ static int do_store_exclusive(CPUPPCState *env)
                 }
             }
         }
-        ppc_set_crf(env, 0, (stored << 1) | xer_so);
+        env->cr[CRF_LT] = 0;
+        env->cr[CRF_GT] = 0;
+        env->cr[CRF_EQ] = stored;
+        env->cr[CRF_SO] = xer_so;
         env->reserve_addr = (target_ulong)-1;
     }
     if (!segv) {

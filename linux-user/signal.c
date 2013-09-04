@@ -4303,8 +4303,8 @@ static int save_user_regs(CPUPPCState *env, struct target_mcontext *frame,
         || __put_user(env->xer, &frame->mc_gregs[TARGET_PT_XER]))
         return 1;
 
-    for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
-        ccr |= ppc_get_crf(env, i) << (32 - ((i + 1) * 4));
+    for (i = 0; i < ARRAY_SIZE(env->cr); i++) {
+        ccr |= env->cr[i] << (31 - i);
     }
     if (__put_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]))
         return 1;
@@ -4403,8 +4403,8 @@ static int restore_user_regs(CPUPPCState *env,
     if (__get_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]))
         return 1;
 
-    for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
-        ppc_set_crf(env, i, (ccr >> (32 - ((i + 1) * 4))) & 0xf);
+    for (i = 0; i < ARRAY_SIZE(env->cr); i++) {
+        env->cr[i] = (ccr >> (31 - i)) & 1;
     }
 
     if (!sig) {

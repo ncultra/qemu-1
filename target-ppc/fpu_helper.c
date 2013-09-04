@@ -1048,7 +1048,11 @@ void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
 
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
     env->fpscr |= (0x08 << FPSCR_FPRF) >> ret;
-    ppc_set_crf(env, crfD, 0x08 >> ret);
+
+    env->cr[crfD * 4 + CRF_LT] = (ret == CRF_LT);
+    env->cr[crfD * 4 + CRF_GT] = (ret == CRF_GT);
+    env->cr[crfD * 4 + CRF_EQ] = (ret == CRF_EQ);
+    env->cr[crfD * 4 + CRF_SO] = (ret == CRF_SO);
 
     if (unlikely(ret == CRF_SO
                  && (float64_is_signaling_nan(farg1.d) ||
@@ -1080,7 +1084,11 @@ void helper_fcmpo(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
 
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
     env->fpscr |= (0x08 << FPSCR_FPRF) >> ret;
-    ppc_set_crf(env, crfD, 0x08 >> ret);
+
+    env->cr[crfD * 4 + CRF_LT] = (ret == CRF_LT);
+    env->cr[crfD * 4 + CRF_GT] = (ret == CRF_GT);
+    env->cr[crfD * 4 + CRF_EQ] = (ret == CRF_EQ);
+    env->cr[crfD * 4 + CRF_SO] = (ret == CRF_SO);
 
     if (unlikely(ret == CRF_SO)) {
         if (float64_is_signaling_nan(farg1.d) ||

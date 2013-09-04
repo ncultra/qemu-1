@@ -2996,7 +2996,7 @@ static target_long monitor_get_ccr (const struct MonitorDef *md, int val)
 
     u = 0;
     for (i = 0; i < 8; i++)
-        u |= ppc_get_crf(env, i) << (32 - (4 * (i + 1)));
+        u |= env->cr[i] << (31 - i);
 
     return u;
 }

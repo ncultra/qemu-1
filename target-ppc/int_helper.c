@@ -188,8 +188,8 @@ target_ulong helper_mfocrf(CPUPPCState *env)
 {
     uint32_t cr = 0;
     int i;
-    for (i = 0; i < 8; i++) {
-        cr |= ppc_get_crf(env, i) << (32 - (i + 1) * 4);
+    for (i = 0; i < 32; i++) {
+        cr |= env->cr[i] << (31 - i);
     }
     return cr;
 }
@@ -536,7 +536,10 @@ VCF(sx, int32_to_float32, s32)
             none |= result;                                             \
         }                                                               \
         if (record) {                                                   \
-            ppc_set_crf(env, 6, ((all != 0) << 3) | ((none == 0) << 1)); \
+            env->cr[24 + CRF_LT] = (all != 0);                          \
+            env->cr[24 + CRF_GT] = 0;                                   \
+            env->cr[24 + CRF_EQ] = (none == 0);                         \
+            env->cr[24 + CRF_SO] = 0;                                   \
         }                                                               \
     }
 #define VCMP(suffix, compare, element)          \
@@ -579,7 +582,10 @@ VCMP(gtsw, >, s32)
             none |= result;                                             \
         }                                                               \
         if (record) {                                                   \
-            ppc_set_crf(env, 6, ((all != 0) << 3) | ((none == 0) << 1)); \
+            env->cr[24 + CRF_LT] = (all != 0);                          \
+            env->cr[24 + CRF_GT] = 0;                                   \
+            env->cr[24 + CRF_EQ] = (none == 0);                         \
+            env->cr[24 + CRF_SO] = 0;                                   \
         }                                                               \
     }
 #define VCMPFP(suffix, compare, order)          \
@@ -613,7 +619,10 @@ static inline void vcmpbfp_internal(CPUPPCState *env, ppc_avr_t *r,
         }
     }
     if (record) {
-        ppc_set_crf(env, 6, (all_in == 0) << 1);
+        env->cr[24 + CRF_LT] = 0;
+        env->cr[24 + CRF_GT] = 0;
+        env->cr[24 + CRF_EQ] = (all_in == 0);
+        env->cr[24 + CRF_SO] = 0;
     }
 }
 
@@ -1467,7 +1476,9 @@ target_ulong helper_dlmzb(CPUPPCState *env, target_ulong high,
     for (mask = 0xFF000000; mask != 0; mask = mask >> 8) {
         if ((high & mask) == 0) {
             if (update_Rc) {
-                ppc_set_crf(env, 0, 0x4);
+                env->cr[CRF_LT] = 0;
+                env->cr[CRF_GT] = 1;
+                env->cr[CRF_EQ] = 0;
             }
             goto done;
         }
@@ -1476,14 +1487,18 @@ target_ulong helper_dlmzb(CPUPPCState *env, target_ulong high,
     for (mask = 0xFF000000; mask != 0; mask = mask >> 8) {
         if ((low & mask) == 0) {
             if (update_Rc) {
-                ppc_set_crf(env, 0, 0x8);
+                env->cr[CRF_LT] = 1;
+                env->cr[CRF_GT] = 0;
+                env->cr[CRF_EQ] = 0;
             }
             goto done;
         }
         i++;
     }
     if (update_Rc) {
-        ppc_set_crf(env, 0, 0x2);
+        env->cr[CRF_LT] = 0;
+        env->cr[CRF_GT] = 0;
+        env->cr[CRF_EQ] = 1;
     }
  done:
     env->xer = (env->xer & ~0x7F) | i;

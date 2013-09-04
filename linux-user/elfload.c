@@ -692,8 +692,8 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
     (*regs)[36] = tswapreg(env->lr);
     (*regs)[37] = tswapreg(env->xer);
 
-    for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
-        ccr |= ppc_get_crf(env, i) << (32 - ((i + 1) * 4));
+    for (i = 0; i < ARRAY_SIZE(env->cr); i++) {
+        ccr |= env->cr[i] << (31 - i);
     }
     (*regs)[38] = tswapreg(ccr);
 }

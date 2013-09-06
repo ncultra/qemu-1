@@ -1948,15 +1948,13 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 break;
             case 1: /* Primary context */
                 env->dmmu.mmu_primary_context = val;
-                /* can be optimized to only flush MMU_USER_IDX
-                   and MMU_KERNEL_IDX entries */
-                tlb_flush(env, 1);
+                tlb_flush_idx(env, MMU_USER_IDX);
+                tlb_flush_idx(env, MMU_KERNEL_IDX);
                 break;
             case 2: /* Secondary context */
                 env->dmmu.mmu_secondary_context = val;
-                /* can be optimized to only flush MMU_USER_SECONDARY_IDX
-                   and MMU_KERNEL_SECONDARY_IDX entries */
-                tlb_flush(env, 1);
+                tlb_flush_idx(env, MMU_USER_SECONDARY_IDX);
+                tlb_flush_idx(env, MMU_KERNEL_SECONDARY_IDX);
                 break;
             case 5: /* TSB access */
                 DPRINTF_MMU("dmmu TSB write: 0x%016" PRIx64 " -> 0x%016"

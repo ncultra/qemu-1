@@ -39,17 +39,37 @@ static inline void hreg_swap_gpr_tgpr(CPUPPCState *env)
     env->tgpr[3] = tmp;
 }
 
-static inline void hreg_compute_mem_idx(CPUPPCState *env)
+static inline bool hreg_compute_mem_idx(CPUPPCState *env)
 {
-    /* Precompute MMU index */
-    if (msr_pr == 0 && msr_hv != 0) {
-        env->mmu_idx = 2;
-    } else {
-        env->mmu_idx = 1 - msr_pr;
+    int msr = env->msr;
+    int i;
+
+    if (!tcg_enabled()) {
+        return false;
     }
+
+    msr &= (1 << MSR_IR) | (1 << MSR_DR) | (1 << MSR_PR) | MSR_HVB;
+    if (msr_pr == 1) {
+        msr &= ~MSR_HVB;
+    }
+
+    for (i = 0; i < NB_MMU_MODES; i++) {
+        if (env->mmu_msr[i] == msr) {
+            env->mmu_idx = i;
+            return false;
+        }
+    }
+
+    /* Use a new index with FIFO replacement.  */
+    i = (env->mmu_fifo == NB_MMU_MODES - 1 ? 0 : env->mmu_fifo + 1);
+    env->mmu_fifo = i;
+    env->mmu_msr[i] = msr;
+    env->mmu_idx = i;
+    tlb_flush_idx(env, i);
+    return true;
 }
 
-static inline void hreg_compute_hflags(CPUPPCState *env)
+static inline bool hreg_compute_hflags(CPUPPCState *env)
 {
     target_ulong hflags_mask;
 
@@ -58,10 +78,10 @@ static inline void hreg_compute_hflags(CPUPPCState *env)
         (1 << MSR_PR) | (1 << MSR_FP) | (1 << MSR_SE) | (1 << MSR_BE) |
         (1 << MSR_LE);
     hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | MSR_HVB;
-    hreg_compute_mem_idx(env);
     env->hflags = env->msr & hflags_mask;
     /* Merge with hflags coming from other registers */
     env->hflags |= env->hflags_nmsr;
+    return hreg_compute_mem_idx(env);
 }
 
 static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
@@ -80,13 +100,6 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
         value &= ~MSR_HVB;
         value |= env->msr & MSR_HVB;
     }
-    if (((value >> MSR_IR) & 1) != msr_ir ||
-        ((value >> MSR_DR) & 1) != msr_dr) {
-        /* Flush all tlb when changing translation mode */
-        tlb_flush(env, 1);
-        excp = POWERPC_EXCP_NONE;
-        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
-    }
     if (unlikely((env->flags & POWERPC_FLAG_TGPR) &&
                  ((value ^ env->msr) & (1 << MSR_TGPR)))) {
         /* Swap temporary saved registers with GPRs */
@@ -98,7 +111,13 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     }
 #endif
     env->msr = value;
-    hreg_compute_hflags(env);
+    if (hreg_compute_hflags(env)) {
+#if !defined(CONFIG_USER_ONLY)
+        /* TLB was flushed, exit the current translation block.  */
+        excp = POWERPC_EXCP_NONE;
+        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+#endif
+    }
 #if !defined(CONFIG_USER_ONLY)
     if (unlikely(msr_pow == 1)) {
         if ((*env->check_pow)(env)) {

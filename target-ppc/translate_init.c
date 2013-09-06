@@ -8444,6 +8444,7 @@ static void ppc_cpu_reset(CPUState *s)
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong msr;
+    int i;
 
     pcc->parent_reset(s);
 
@@ -8452,6 +8453,7 @@ static void ppc_cpu_reset(CPUState *s)
         /* XXX: find a suitable condition to enable the hypervisor mode */
         msr |= (target_ulong)MSR_HVB;
     }
+
     msr |= (target_ulong)0 << MSR_AP; /* TO BE CHECKED */
     msr |= (target_ulong)0 << MSR_SA; /* TO BE CHECKED */
     msr |= (target_ulong)1 << MSR_EP;
@@ -8472,6 +8474,10 @@ static void ppc_cpu_reset(CPUState *s)
         env->msr |= (1ULL << MSR_SF);
     }
 #endif
+
+    for (i = 1; i < NB_MMU_MODES; i++) {
+        env->mmu_msr[i] = -1;
+    }
 
     hreg_store_msr(env, msr, 1);
 

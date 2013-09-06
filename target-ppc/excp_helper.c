@@ -606,10 +606,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     if (asrr1 != -1) {
         env->spr[asrr1] = env->spr[srr1];
     }
-    /* If we disactivated any translation, flush TLBs */
-    if (msr & ((1 << MSR_IR) | (1 << MSR_DR))) {
-        tlb_flush(env, 1);
-    }
 
 #ifdef TARGET_PPC64
     if (excp_model == POWERPC_EXCP_POWER7) {
@@ -661,8 +657,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
         (env->mmu_model == POWERPC_MMU_BOOKE206)) {
         /* XXX: The BookE changes address space when switching modes,
-                we should probably implement that as different MMU indexes,
-                but for the moment we do it the slow way and flush all.  */
+                TODO: still needed?!?  */
         tlb_flush(env, 1);
     }
 }

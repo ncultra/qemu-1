@@ -79,6 +79,29 @@ void tlb_flush(CPUArchState *env, int flush_global)
     tlb_flush_count++;
 }
 
+void tlb_flush_idx(CPUArchState *env, int mmu_idx)
+{
+    CPUState *cpu = ENV_GET_CPU(env);
+    int i;
+
+#if defined(DEBUG_TLB)
+    printf("tlb_flush_idx %d:\n", mmu_idx);
+#endif
+    /* must reset current TB so that interrupts cannot modify the
+       links while we are modifying them */
+    cpu->current_tb = NULL;
+
+    for (i = 0; i < CPU_TLB_SIZE; i++) {
+        env->tlb_table[mmu_idx][i] = s_cputlb_empty_entry;
+    }
+
+    memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
+
+    env->tlb_flush_addr = -1;
+    env->tlb_flush_mask = 0;
+    tlb_flush_count++;
+}
+
 static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 {
     if (addr == (tlb_entry->addr_read &

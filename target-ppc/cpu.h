@@ -886,7 +886,7 @@ struct ppc_segment_page_sizes {
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
-#define NB_MMU_MODES 3
+#define NB_MMU_MODES 6
 
 #define PPC_CPU_OPCODES_LEN 0x40
 
@@ -1052,6 +1052,8 @@ struct CPUPPCState {
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
     target_ulong hflags_nmsr; /* specific hflags, not coming from MSR */
     int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
+    uint32_t mmu_msr[NB_MMU_MODES];  /* ir/dr/hv/pr values for TLBs */
+    int mmu_fifo;  /* for replacement in mmu_msr */
 
     /* Power management */
     int (*check_pow)(CPUPPCState *env);

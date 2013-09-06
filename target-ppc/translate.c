@@ -9750,7 +9750,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
-    ctx.mem_idx = env->mmu_idx;
+    ctx.mem_idx = (!msr_pr && msr_hv) ? 2 : 1 - msr_pr;
     ctx.insns_flags = env->insns_flags;
     ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;

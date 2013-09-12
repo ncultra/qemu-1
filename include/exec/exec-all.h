@@ -72,6 +72,14 @@ typedef struct TranslationBlock TranslationBlock;
 
 #include "qemu/log.h"
 
+#ifdef CONFIG_USER_ONLY
+void mmap_lock(void);
+void mmap_unlock(void);
+#else
+#define mmap_lock() do { } while (0)
+#define mmap_unlock() do { } while (0)
+#endif
+
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
@@ -177,8 +185,6 @@ struct TBContext {
     TranslationBlock *tbs;
     TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
     int nb_tbs;
-    /* any access to the tbs or the page table must use this lock */
-    spinlock_t tb_lock;
 
     /* statistics */
     int tb_flush_count;

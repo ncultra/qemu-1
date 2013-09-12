@@ -1506,7 +1506,9 @@ static void check_watchpoint(int offset, int len_mask, int flags)
                     cpu_loop_exit(env);
                 } else {
                     cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
+                    mmap_lock();
                     tb_gen_code(env, pc, cs_base, cpu_flags, 1, true);
+                    mmap_unlock();
                     cpu_resume_from_signal(env, NULL);
                 }
             }

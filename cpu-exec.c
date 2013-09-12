@@ -598,7 +598,7 @@ int cpu_exec(CPUArchState *env)
 #endif
                 }
 #endif /* DEBUG_DISAS */
-                spin_lock(&tcg_ctx.tb_ctx.tb_lock);
+                mmap_lock();
                 tb = tb_find_fast(env);
                 if (tcg_ctx.tb_ctx.tb_invalidated_flag) {
                     /* as some TB could have been invalidated because
@@ -618,7 +618,7 @@ int cpu_exec(CPUArchState *env)
                     tb_add_jump((TranslationBlock *)(next_tb & ~TB_EXIT_MASK),
                                 next_tb & TB_EXIT_MASK, tb);
                 }
-                spin_unlock(&tcg_ctx.tb_ctx.tb_lock);
+                mmap_unlock();
 
                 /* cpu_interrupt might be called while translating the
                    TB, but before it is linked into a potentially

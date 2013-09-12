@@ -432,11 +432,6 @@ static inline PageDesc *page_find(tb_page_addr_t index)
     return page_find_alloc(index, 0);
 }
 
-#if !defined(CONFIG_USER_ONLY)
-#define mmap_lock() do { } while (0)
-#define mmap_unlock() do { } while (0)
-#endif
-
 #if defined(CONFIG_USER_ONLY)
 /* Currently it is not recommended to allocate big chunks of data in
    user mode. It will change when a dedicated libc will be used.  */
@@ -1498,12 +1493,13 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
     cs_base = tb->cs_base;
     flags = tb->flags;
 
-    /* FIXME: what locks should even be taken here?  mmap_lock, tb_lock?  */
-
+    mmap_lock();
     tb_phys_invalidate(tb, -1);
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */
     tb_gen_code(env, pc, cs_base, flags, cflags, true);
+    mmap_unlock();
+
     /* TODO: If env->pc != tb->pc (i.e. the faulting instruction was not
        the first in the TB) then we end up generating a whole new TB and
        repeating the fault, which is horribly inefficient.

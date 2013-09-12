@@ -11,6 +11,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
+#include "exec/exec-all.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/sysbus.h"
 
@@ -448,7 +449,9 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 
     if (!kvm_enabled()) {
         cs->current_tb = NULL;
+        mmap_lock();
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1, true);
+        mmap_unlock();
         cpu_resume_from_signal(env, NULL);
     }
 }

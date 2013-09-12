@@ -1227,7 +1227,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
             env->watchpoint_hit = NULL;
             goto send_packet;
         }
-        tb_flush(env);
+        tb_flush();
         ret = GDB_SIGNAL_TRAP;
         break;
     case RUN_STATE_PAUSED:
@@ -1466,7 +1466,7 @@ gdb_handlesig(CPUState *cpu, int sig)
 
     /* disable single step if it was enabled */
     cpu_single_step(cpu, 0);
-    tb_flush(env);
+    tb_flush();
 
     if (sig != 0) {
         snprintf(buf, sizeof(buf), "S%02x", target_signal_to_gdb(sig));

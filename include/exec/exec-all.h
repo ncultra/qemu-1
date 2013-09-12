@@ -208,7 +208,7 @@ static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc)
 }
 
 void tb_free(TranslationBlock *tb);
-void tb_flush(CPUArchState *env);
+void tb_flush(void);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 
 #if defined(USE_DIRECT_JUMP)

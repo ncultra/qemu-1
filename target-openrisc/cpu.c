@@ -38,7 +38,10 @@ static void openrisc_cpu_reset(CPUState *s)
     memset(&cpu->env, 0, offsetof(CPUOpenRISCState, breakpoints));
 
     tlb_flush(&cpu->env, 1);
-    /*tb_flush(&cpu->env);    FIXME: Do we need it?  */
+#if 0
+    /* FIXME: Do we need it?  */
+    tb_flush();
+#endif
 
     cpu->env.pc = 0x100;
     cpu->env.sr = SR_FO | SR_SM;

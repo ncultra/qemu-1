@@ -588,7 +588,7 @@ void cpu_single_step(CPUState *cpu, int enabled)
             /* must flush all the translated code to avoid inconsistencies */
             /* XXX: only flush what is necessary */
             CPUArchState *env = cpu->env_ptr;
-            tb_flush(env);
+            tb_flush();
         }
     }
 #endif

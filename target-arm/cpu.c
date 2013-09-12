@@ -133,7 +133,7 @@ static void arm_cpu_reset(CPUState *s)
      * bake assumptions about into translated code, so we need to
      * tb_flush().
      */
-    tb_flush(env);
+    tb_flush();
 }
 
 #ifndef CONFIG_USER_ONLY

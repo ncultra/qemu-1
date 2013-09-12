@@ -683,7 +683,7 @@ static void page_flush_tb(void)
 
 /* flush all the translation blocks */
 /* XXX: tb_flush is currently not thread safe */
-void tb_flush(CPUArchState *env1)
+void tb_flush(void)
 {
     CPUState *cpu;
 
@@ -696,7 +696,7 @@ void tb_flush(CPUArchState *env1)
 #endif
     if ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)
         > tcg_ctx.code_gen_buffer_size) {
-        cpu_abort(env1, "Internal error: code buffer overflow\n");
+        fprintf(stderr, "Internal error: code buffer overflow\n");
     }
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
@@ -954,7 +954,7 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
     tb = tb_alloc(pc);
     if (!tb) {
         /* flush must be done */
-        tb_flush(env);
+        tb_flush();
         /* cannot fail at this point */
         tb = tb_alloc(pc);
         /* Don't forget to invalidate previous TB info.  */

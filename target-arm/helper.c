@@ -415,7 +415,7 @@ static int cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     if (env->cp15.c1_coproc != value) {
         env->cp15.c1_coproc = value;
         /* ??? Is this safe when called from within a TB?  */
-        tb_flush(env);
+        tb_flush();
     }
     return 0;
 }
@@ -1295,7 +1295,7 @@ static int xscale_cpar_write(CPUARMState *env, const ARMCPRegInfo *ri,
     value &= 0x3fff;
     if (env->cp15.c15_cpar != value) {
         /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
-        tb_flush(env);
+        tb_flush();
         env->cp15.c15_cpar = value;
     }
     return 0;

@@ -911,6 +911,7 @@ static inline void set_bits(uint8_t *tab, int start, int len)
     }
 }
 
+/* Called with mmap_lock held.  */
 static void build_page_bitmap(PageDesc *p)
 {
     int n, tb_start, tb_end;
@@ -1005,8 +1006,7 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
  *
- * Called with mmap_lock held or from functions that are not used for user-mode
- * emulation.
+ * Called with mmap_lock held.
  */
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
@@ -1143,6 +1143,7 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
     if (!p) {
         return;
     }
+    mmap_lock();
     if (p->code_bitmap) {
         offset = start & ~TARGET_PAGE_MASK;
         b = p->code_bitmap[offset >> 3] >> (offset & 7);
@@ -1153,6 +1154,7 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
     do_invalidate:
         tb_invalidate_phys_page_range(start, start + len, 1);
     }
+    mmap_unlock();
 }
 
 #if !defined(CONFIG_SOFTMMU)
@@ -1391,7 +1393,9 @@ void tb_invalidate_phys_addr(hwaddr addr)
     }
     ram_addr = (memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK)
         + addr;
+    mmap_lock();
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
+    mmap_unlock();
 }
 #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
 
@@ -1399,6 +1403,7 @@ void tb_check_watchpoint(CPUArchState *env)
 {
     TranslationBlock *tb;
 
+    mmap_lock();
     tb = tb_find_pc(env->mem_io_pc);
     if (!tb) {
         cpu_abort(env, "check_watchpoint: could not find TB for pc=%p",
@@ -1406,6 +1411,7 @@ void tb_check_watchpoint(CPUArchState *env)
     }
     cpu_restore_state_from_tb(tb, env, env->mem_io_pc);
     tb_phys_invalidate(tb, -1);
+    mmap_unlock();
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1488,6 +1494,9 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
     pc = tb->pc;
     cs_base = tb->cs_base;
     flags = tb->flags;
+
+    /* FIXME: what locks should even be taken here?  mmap_lock, tb_lock?  */
+
     tb_phys_invalidate(tb, -1);
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */

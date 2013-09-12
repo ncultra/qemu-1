@@ -405,7 +405,9 @@ void cpu_exec_init(CPUArchState *env)
 #if defined(CONFIG_USER_ONLY)
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
+    mmap_lock();
     tb_invalidate_phys_page_range(pc, pc + 1, 0);
+    mmap_unlock();
 }
 #else
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
@@ -1869,7 +1871,9 @@ static void invalidate_and_set_dirty(hwaddr addr,
 {
     if (!cpu_physical_memory_is_dirty(addr)) {
         /* invalidate code */
+        mmap_lock();
         tb_invalidate_phys_page_range(addr, addr + length, 0);
+        mmap_unlock();
         /* set dirty bit */
         cpu_physical_memory_set_dirty_flags(addr, (0xff & ~CODE_DIRTY_FLAG));
     }
@@ -2449,7 +2453,9 @@ void stl_phys_notdirty(hwaddr addr, uint32_t val)
         if (unlikely(in_migration)) {
             if (!cpu_physical_memory_is_dirty(addr1)) {
                 /* invalidate code */
+                mmap_lock();
                 tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
+                mmap_unlock();
                 /* set dirty bit */
                 cpu_physical_memory_set_dirty_flags(
                     addr1, (0xff & ~CODE_DIRTY_FLAG));

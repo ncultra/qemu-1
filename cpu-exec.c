@@ -597,8 +597,6 @@ int cpu_exec(CPUArchState *env)
 #endif /* DEBUG_DISAS */
                 spin_lock(&tcg_ctx.tb_ctx.tb_lock);
                 tb = tb_find_fast(env);
-                /* Note: we do it here to avoid a gcc bug on Mac OS X when
-                   doing it in tb_find_slow */
                 if (tcg_ctx.tb_ctx.tb_invalidated_flag) {
                     /* as some TB could have been invalidated because
                        of memory exceptions while generating the code, we

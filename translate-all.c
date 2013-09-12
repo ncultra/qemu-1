@@ -997,10 +997,17 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
                               int is_cpu_write_access)
 {
+    bool restart = false;
+
     while (start < end) {
-        tb_invalidate_phys_page_range(start, end, is_cpu_write_access);
+        restart |= tb_invalidate_phys_page_range(start, end, is_cpu_write_access);
         start &= TARGET_PAGE_MASK;
         start += TARGET_PAGE_SIZE;
+    }
+
+    if (restart) {
+        /* mmap_lock held, should we unlock it now?  */
+        cpu_resume_from_signal(env, NULL);
     }
 }
 
@@ -1013,7 +1020,7 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
  *
  * Called with mmap_lock held.
  */
-void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
+bool tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
 {
     TranslationBlock *tb, *tb_next, *saved_tb;
@@ -1124,9 +1131,10 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
            itself */
         cpu->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1, true);
-        cpu_resume_from_signal(env, NULL);
+        return true;
     }
 #endif
+    return false;
 }
 
 /* len must be <= 8 and start must be a multiple of len */
@@ -1134,6 +1142,7 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 {
     PageDesc *p;
     int offset, b;
+    bool restart = false;
 
 #if 0
     if (1) {
@@ -1157,9 +1166,13 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
         }
     } else {
     do_invalidate:
-        tb_invalidate_phys_page_range(start, start + len, 1);
+        restart = tb_invalidate_phys_page_range(start, start + len, 1);
     }
     mmap_unlock();
+
+    if (restart) {
+        cpu_resume_from_signal(env, NULL);
+    }
 }
 
 #if !defined(CONFIG_SOFTMMU)
@@ -1398,6 +1411,7 @@ void tb_invalidate_phys_addr(hwaddr addr)
     ram_addr_t ram_addr;
     MemoryRegion *mr;
     hwaddr l = 1;
+    bool restart = false;
 
     mr = address_space_translate(&address_space_memory, addr, &addr, &l, false);
     if (!(memory_region_is_ram(mr)
@@ -1407,8 +1421,12 @@ void tb_invalidate_phys_addr(hwaddr addr)
     ram_addr = (memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK)
         + addr;
     mmap_lock();
-    tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
+    restart = tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
     mmap_unlock();
+
+    if (restart) {
+        cpu_resume_from_signal(env, NULL);
+    }
 }
 #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
 

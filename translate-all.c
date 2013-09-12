@@ -121,8 +121,8 @@ static void *l1_map[V_L1_SIZE];
 /* code generation context */
 TCGContext tcg_ctx;
 
-static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
-                         tb_page_addr_t phys_page2);
+static void tb_link_page(TranslationBlock *tb, tb_page_addr_t pc,
+                         tb_page_addr_t phys_pc);
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
 void cpu_gen_init(void)
@@ -947,8 +947,7 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
 {
     TranslationBlock *tb;
     uint8_t *tc_ptr;
-    tb_page_addr_t phys_pc, phys_page2;
-    target_ulong virt_page2;
+    tb_page_addr_t phys_pc;
     int code_gen_size;
 
     phys_pc = get_page_addr_code(env, pc);
@@ -970,13 +969,7 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
     tcg_ctx.code_gen_ptr = (void *)(((uintptr_t)tcg_ctx.code_gen_ptr +
             code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
-    /* check next page if needed */
-    virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
-    phys_page2 = -1;
-    if ((pc & TARGET_PAGE_MASK) != virt_page2) {
-        phys_page2 = get_page_addr_code(env, virt_page2);
-    }
-    tb_link_page(tb, phys_pc, phys_page2);
+    tb_link_page(tb, pc, phys_pc);
     return tb;
 }
 
@@ -1291,13 +1284,21 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 #endif /* TARGET_HAS_SMC */
 }
 
-/* add a new TB and link it to the physical page tables. phys_page2 is
-   (-1) to indicate that only one page contains the TB. */
-static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
-                         tb_page_addr_t phys_page2)
+/* add a new TB and link it to the physical page tables. */
+static void tb_link_page(TranslationBlock *tb, tb_page_addr_t pc,
+                         tb_page_addr phys_pc)
 {
     unsigned int h;
     TranslationBlock **ptb;
+    tb_page_addr_t phys_page2;
+    target_ulong virt_page2;
+
+    /* check next page if needed */
+    virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
+    phys_page2 = -1;
+    if ((pc & TARGET_PAGE_MASK) != virt_page2) {
+        phys_page2 = get_page_addr_code(env, virt_page2);
+    }
 
     /* Grab the mmap lock to stop another thread invalidating this TB
        before we are done.  */

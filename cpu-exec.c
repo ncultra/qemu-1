@@ -110,6 +110,7 @@ static TranslationBlock *tb_find_slow(CPUArchState *env,
     tb_page_addr_t phys_pc, phys_page1;
     target_ulong virt_page2;
 
+    /* XXX: Why here?  */
     tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
 
     /* find translated block using physical mappings */

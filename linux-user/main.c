@@ -2969,8 +2969,10 @@ void cpu_loop(CPUAlphaState *env)
             env->lock_addr = -1;
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
+            mmap_lock();
             info.si_code = (page_get_flags(env->trap_arg0) & PAGE_VALID
                             ? TARGET_SEGV_ACCERR : TARGET_SEGV_MAPERR);
+            mmap_unlock();
             info._sifields._sigfault._addr = env->trap_arg0;
             queue_signal(env, info.si_signo, &info);
             break;

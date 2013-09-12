@@ -1695,6 +1695,7 @@ void page_dump(FILE *f)
     walk_memory_regions(f, dump_region);
 }
 
+/* Called with mmap_lock held, but it's just a read-side critical section.  */
 int page_get_flags(target_ulong address)
 {
     PageDesc *p;

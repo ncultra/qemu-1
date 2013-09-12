@@ -676,8 +676,12 @@ static void page_flush_tb(void)
     }
 }
 
+static void ack_flush(void)
+{
+}
+
 /* flush all the translation blocks */
-/* XXX: tb_flush is currently not thread safe */
+/* XXX: when flushing from a helper, this is unsafe.  */
 void tb_flush(void)
 {
     CPUState *cpu;
@@ -689,6 +693,7 @@ void tb_flush(void)
            ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)) /
            tcg_ctx.tb_ctx.nb_tbs : 0);
 #endif
+    mmap_lock();
     if ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)
         > tcg_ctx.code_gen_buffer_size) {
         fprintf(stderr, "Internal error: code buffer overflow\n");
@@ -705,10 +710,20 @@ void tb_flush(void)
             CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
     page_flush_tb();
 
+    /* Exit all other CPUs.  */
+    CPU_FOREACH(cpu) {
+        CPUArchState *env = cpu->env_ptr;
+
+        cpu_exit(cpu);
+
+        run_on_cpu(cpu, ack_flush, NULL)
+    }
+
     tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
     /* XXX: flush processor icache at this point if cache flush is
        expensive */
     tcg_ctx.tb_ctx.tb_flush_count++;
+    mmap_unlock();
 }
 
 #ifdef DEBUG_TB_CHECK

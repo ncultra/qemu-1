@@ -824,7 +824,7 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
     tb_set_jmp_target(tb, n, (uintptr_t)(tb->tc_ptr + tb->tb_next_offset[n]));
 }
 
-/* invalidate one TB */
+/* invalidate one TB.  Called with mmap_lock held. */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
     CPUState *cpu;
@@ -943,7 +943,7 @@ static void build_page_bitmap(PageDesc *p)
 
 TranslationBlock *tb_gen_code(CPUArchState *env,
                               target_ulong pc, target_ulong cs_base,
-                              int flags, int cflags)
+                              int flags, int cflags, bool link)
 {
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -969,7 +969,9 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
     tcg_ctx.code_gen_ptr = (void *)(((uintptr_t)tcg_ctx.code_gen_ptr +
             code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
-    tb_link_page(tb, pc, phys_pc);
+    if (link) {
+        tb_link_page(tb, pc, phys_pc);
+    }
     return tb;
 }
 
@@ -1111,7 +1113,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
            modifying the memory. It will ensure that it cannot modify
            itself */
         cpu->current_tb = NULL;
-        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1, true);
         cpu_resume_from_signal(env, NULL);
     }
 #endif
@@ -1210,7 +1212,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
            modifying the memory. It will ensure that it cannot modify
            itself */
         cpu->current_tb = NULL;
-        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1, true);
 
         /* cpu_resume_from_signal never returns, ensure lock is
          * released.  XXX: perhaps assert that the lock is not
@@ -1501,7 +1503,7 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
     tb_phys_invalidate(tb, -1);
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */
-    tb_gen_code(env, pc, cs_base, flags, cflags);
+    tb_gen_code(env, pc, cs_base, flags, cflags, true);
     /* TODO: If env->pc != tb->pc (i.e. the faulting instruction was not
        the first in the TB) then we end up generating a whole new TB and
        repeating the fault, which is horribly inefficient.

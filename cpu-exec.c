@@ -90,13 +90,15 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
     if (max_cycles > CF_COUNT_MASK)
         max_cycles = CF_COUNT_MASK;
 
+    /* Do not link this TB so that we do not need to call
+     * tb_phys_invalidate.
+     */
     tb = tb_gen_code(env, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
-                     max_cycles);
+                     max_cycles, false);
     cpu->current_tb = tb;
     /* execute the generated code */
     cpu_tb_exec(cpu, tb->tc_ptr);
     cpu->current_tb = NULL;
-    tb_phys_invalidate(tb, -1);
     tb_free(tb);
 }
 
@@ -143,7 +145,7 @@ static TranslationBlock *tb_find_slow(CPUArchState *env,
     }
  not_found:
    /* if no translated code available, then translate it now */
-    tb = tb_gen_code(env, pc, cs_base, flags, 0);
+    tb = tb_gen_code(env, pc, cs_base, flags, 0, true);
 
  found:
     /* Move the last found TB to the head of the list */

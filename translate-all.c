@@ -373,6 +373,10 @@ static void page_init(void)
 #endif
 }
 
+/* Called with mmap_lock held if alloc = true.
+ * Data is never freed, so page_find can be called without
+ * mmap_lock held.
+ */
 static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
 {
     PageDesc *pd;
@@ -981,6 +985,8 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
  * 'is_cpu_write_access' should be true if called from a real cpu write
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
+ *
+ * Called with mmap_lock held.
  */
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
                               int is_cpu_write_access)
@@ -998,6 +1004,9 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
  * 'is_cpu_write_access' should be true if called from a real cpu write
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
+ *
+ * Called with mmap_lock held or from functions that are not used for user-mode
+ * emulation.
  */
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
@@ -1216,7 +1225,9 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 }
 #endif
 
-/* add the tb in the target page and protect it if necessary */
+/* add the tb in the target page and protect it if necessary
+ * Called with mmap_lock held.
+ */
 static inline void tb_alloc_page(TranslationBlock *tb,
                                  unsigned int n, tb_page_addr_t page_addr)
 {

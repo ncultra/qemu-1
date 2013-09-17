@@ -836,17 +836,18 @@ static void nvme_exit(PCIDevice *pci_dev)
 
     nvme_clear_ctrl(n);
     msix_uninit_exclusive_bar(pci_dev);
-    msix_free_exclusive_bar(pci_dev);
 }
 
 static void nvme_instance_finalize(Object *obj)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
     NvmeCtrl *n = NVME(obj);
 
     g_free(n->namespaces);
     g_free(n->cq);
     g_free(n->sq);
     memory_region_destroy(&n->iomem);
+    msix_free_exclusive_bar(pci_dev);
 }
 
 static Property nvme_props[] = {

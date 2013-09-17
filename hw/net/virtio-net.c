@@ -1578,8 +1578,6 @@ static int virtio_net_device_exit(DeviceState *qdev)
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
 
-    unregister_savevm(qdev, "virtio-net", n);
-
     for (i = 0; i < n->max_queues; i++) {
         VirtIONetQueue *q = &n->vqs[i];
         NetClientState *nc = qemu_get_subqueue(n->nic, i);
@@ -1600,6 +1598,8 @@ static int virtio_net_device_exit(DeviceState *qdev)
 static void virtio_net_instance_finalize(Object *obj)
 {
     VirtIONet *n = VIRTIO_NET(obj);
+
+    unregister_savevm(qdev, "virtio-net", n);
 
     if (n->netclient_name) {
         g_free(n->netclient_name);

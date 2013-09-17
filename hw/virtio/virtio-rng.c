@@ -190,8 +190,12 @@ static int virtio_rng_device_exit(DeviceState *qdev)
 
     timer_del(vrng->rate_limit_timer);
     timer_free(vrng->rate_limit_timer);
-    unregister_savevm(qdev, "virtio-rng", vrng);
     return 0;
+}
+
+static void virtio_rng_instance_finalize(Object *obj)
+{
+    unregister_savevm(qdev, "virtio-rng", vrng);
 }
 
 static Property virtio_rng_properties[] = {
@@ -224,6 +228,7 @@ static const TypeInfo virtio_rng_info = {
     .instance_size = sizeof(VirtIORNG),
     .instance_init = virtio_rng_initfn,
     .class_init = virtio_rng_class_init,
+    .instance_finalize = virtio_rng_instance_finalize,
 };
 
 static void virtio_register_types(void)

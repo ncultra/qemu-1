@@ -991,8 +991,6 @@ static int virtio_serial_device_exit(DeviceState *dev)
 {
     VirtIOSerial *vser = VIRTIO_SERIAL(dev);
 
-    unregister_savevm(dev, "virtio-console", vser);
-
     if (vser->post_load) {
         g_free(vser->post_load->connected);
         timer_del(vser->post_load->timer);
@@ -1005,6 +1003,8 @@ static int virtio_serial_device_exit(DeviceState *dev)
 static void virtio_serial_instance_finalize(Object *obj)
 {
     VirtIOSerial *vser = VIRTIO_SERIAL(obj);
+
+    unregister_savevm(dev, "virtio-console", vser);
 
     g_free(vser->ivqs);
     g_free(vser->ovqs);

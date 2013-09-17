@@ -375,8 +375,14 @@ static int virtio_balloon_device_exit(DeviceState *qdev)
 
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
-    unregister_savevm(qdev, "virtio-balloon", s);
     return 0;
+}
+
+static void virtio_ballon_instance_finalize(Object *obj)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(obj);
+
+    unregister_savevm(qdev, "virtio-balloon", s);
 }
 
 static Property virtio_balloon_properties[] = {
@@ -401,6 +407,7 @@ static const TypeInfo virtio_balloon_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOBalloon),
     .class_init = virtio_balloon_class_init,
+    .instance_finalize = virtio_balloon_instance_finalize,
 };
 
 static void virtio_register_types(void)

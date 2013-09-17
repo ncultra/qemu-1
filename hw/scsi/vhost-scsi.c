@@ -245,9 +245,6 @@ static int vhost_scsi_exit(DeviceState *qdev)
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
     VHostSCSI *s = VHOST_SCSI(qdev);
 
-    migrate_del_blocker(s->migration_blocker);
-    error_free(s->migration_blocker);
-
     /* This will stop vhost backend. */
     vhost_scsi_set_status(vdev, 0);
     return 0;
@@ -256,6 +253,9 @@ static int vhost_scsi_exit(DeviceState *qdev)
 static void vhost_scsi_instance_finalize(Object *obj)
 {
     VHostSCSI *s = VHOST_SCSI(qdev);
+
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
 
     g_free(s->dev.vqs);
 }

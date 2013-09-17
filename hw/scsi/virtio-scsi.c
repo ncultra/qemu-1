@@ -651,12 +651,11 @@ static void virtio_scsi_common_instance_finalize(Object *obj)
     g_free(vs->cmd_vqs);
 }
 
-static int virtio_scsi_device_exit(DeviceState *qdev)
+static void virtio_scsi_instance_finalize(Object *obj)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(qdev);
+    VirtIOSCSI *s = VIRTIO_SCSI(obj);
 
     unregister_savevm(qdev, "virtio-scsi", s);
-    return 0;
 }
 
 static Property virtio_scsi_properties[] = {
@@ -677,7 +676,6 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_scsi_device_exit;
     dc->props = virtio_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->init = virtio_scsi_device_init;
@@ -700,6 +698,7 @@ static const TypeInfo virtio_scsi_info = {
     .parent = TYPE_VIRTIO_SCSI_COMMON,
     .instance_size = sizeof(VirtIOSCSI),
     .class_init = virtio_scsi_class_init,
+    .instance_finalize = virtio_scsi_instance_finalize,
 };
 
 static void virtio_register_types(void)

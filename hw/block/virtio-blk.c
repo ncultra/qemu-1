@@ -736,7 +736,6 @@ static int virtio_blk_device_exit(DeviceState *dev)
     virtio_blk_data_plane_destroy(s->dataplane);
     s->dataplane = NULL;
 #endif
-    unregister_savevm(dev, "virtio-blk", s);
     blockdev_mark_auto_del(s->bs);
     return 0;
 }
@@ -744,6 +743,7 @@ static int virtio_blk_device_exit(DeviceState *dev)
 static void virtio_blk_instance_finalize(DeviceState *dev)
 {
     qemu_del_vm_change_state_handler(s->change);
+    unregister_savevm(dev, "virtio-blk", s);
 }
 
 static Property virtio_blk_properties[] = {

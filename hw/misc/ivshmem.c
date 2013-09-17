@@ -784,23 +784,23 @@ static void pci_ivshmem_uninit(PCIDevice *dev)
 {
     IVShmemState *s = IVSHMEM(dev);
 
-    if (s->migration_blocker) {
-        migrate_del_blocker(s->migration_blocker);
-        error_free(s->migration_blocker);
-    }
-
     memory_region_del_subregion(&s->bar, &s->ivshmem);
-    vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
-    unregister_savevm(DEVICE(dev), "ivshmem", s);
 }
 
 static void pci_ivshmem_instance_finalize(Object *obj)
 {
     IVShmemState *s = IVSHMEM(obj);
 
+    if (s->migration_blocker) {
+        migrate_del_blocker(s->migration_blocker);
+        error_free(s->migration_blocker);
+    }
+
     memory_region_destroy(&s->ivshmem_mmio);
+    vmstate_unregister_ram(&s->ivshmem, DEVICE(s));
     memory_region_destroy(&s->ivshmem);
     memory_region_destroy(&s->bar);
+    unregister_savevm(DEVICE(s), "ivshmem", s);
 }
 
 static Property ivshmem_properties[] = {

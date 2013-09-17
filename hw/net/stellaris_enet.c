@@ -423,13 +423,13 @@ static int stellaris_enet_init(SysBusDevice *sbd)
     return 0;
 }
 
-static void stellaris_enet_unrealize(DeviceState *dev, Error **errp)
+static void stellaris_enet_instance_finalize(Object *obj)
 {
-    stellaris_enet_state *s = STELLARIS_ENET(dev);
+    stellaris_enet_state *s = STELLARIS_ENET(obj);
 
     unregister_savevm(DEVICE(s), "stellaris_enet", s);
-
     memory_region_destroy(&s->mmio);
+    qemu_del_nic(s->nic);
 }
 
 static Property stellaris_enet_properties[] = {
@@ -443,7 +443,6 @@ static void stellaris_enet_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = stellaris_enet_init;
-    dc->unrealize = stellaris_enet_unrealize;
     dc->props = stellaris_enet_properties;
 }
 
@@ -452,6 +451,7 @@ static const TypeInfo stellaris_enet_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_enet_state),
     .class_init    = stellaris_enet_class_init,
+    .instance_finalize = stellaris_enet_instance_finalize,
 };
 
 static void stellaris_enet_register_types(void)

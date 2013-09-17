@@ -2144,6 +2144,12 @@ static void vfio_teardown_msi(VFIODevice *vdev)
     if (vdev->msix) {
         msix_uninit(&vdev->pdev, &vdev->bars[vdev->msix->table_bar].mem,
                     &vdev->bars[vdev->msix->pba_bar].mem);
+    }
+}
+
+static void vfio_destroy_msi(VFIODevice *vdev)
+{
+    if (vdev->msix) {
         msix_free(&vdev->pdev);
     }
 }
@@ -3244,6 +3250,7 @@ static void vfio_instance_finalize(Object *obj)
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
     VFIOGroup *group = vdev->group;
 
+    vfio_destroy_msi(vdev);
     vfio_destroy_bars(vdev);
     g_free(vdev->emulated_config_bits);
     vfio_put_device(vdev);

@@ -363,28 +363,14 @@ CPUArchState *cpu_copy(CPUArchState *env);
 void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
-/* Flags for use in ENV->INTERRUPT_PENDING.
+/* Target-specific flags for use in ENV->INTERRUPT_PENDING.
 
    The numbers assigned here are non-sequential in order to preserve
    binary compatibility with the vmstate dump.  Bit 0 (0x0001) was
    previously used for CPU_INTERRUPT_EXIT, and is cleared when loading
    the vmstate dump.  */
 
-/* External hardware interrupt pending.  This is typically used for
-   interrupts from devices.  */
-#define CPU_INTERRUPT_HARD        0x0002
-
-/* Exit the current TB.  This is typically used when some system-level device
-   makes some change to the memory mapping.  E.g. the a20 line change.  */
-#define CPU_INTERRUPT_EXITTB      0x0004
-
-/* Halt the CPU.  */
-#define CPU_INTERRUPT_HALT        0x0020
-
-/* Debug event pending.  */
-#define CPU_INTERRUPT_DEBUG       0x0080
-
-/* Several target-specific external hardware interrupts.  Each target/cpu.h
+/* Target-specific external hardware interrupts.  Each target/cpu.h
    should define proper names based on these defines.  */
 #define CPU_INTERRUPT_TGT_EXT_0   0x0008
 #define CPU_INTERRUPT_TGT_EXT_1   0x0010
@@ -402,7 +388,7 @@ void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
 #define CPU_INTERRUPT_TGT_INT_2   0x0800
 #define CPU_INTERRUPT_TGT_INT_3   0x2000
 
-/* First unused bit: 0x4000.  */
+/* See also include/qom/cpu.h.  First unused bit: 0x4000.  */
 
 /* The set of all bits that should be masked when single-stepping.  */
 #define CPU_INTERRUPT_SSTEP_MASK \

@@ -133,6 +133,29 @@ typedef struct CPUClass {
 struct KVMState;
 struct kvm_run;
 
+/* Flags for use in ENV->INTERRUPT_PENDING.
+
+   The numbers assigned here are non-sequential in order to preserve
+   binary compatibility with the vmstate dump.  Bit 0 (0x0001) was
+   previously used for CPU_INTERRUPT_EXIT, and is cleared when loading
+   the vmstate dump.  */
+
+/* External hardware interrupt pending.  This is typically used for
+   interrupts from devices.  */
+#define CPU_INTERRUPT_HARD        0x0002
+
+/* Exit the current TB.  This is typically used when some system-level device
+   makes some change to the memory mapping.  E.g. the a20 line change.  */
+#define CPU_INTERRUPT_EXITTB      0x0004
+
+/* Halt the CPU.  */
+#define CPU_INTERRUPT_HALT        0x0020
+
+/* Debug event pending.  */
+#define CPU_INTERRUPT_DEBUG       0x0080
+
+/* See also include/exec/cpu-all.h.  First unused bit: 0x4000.  */
+
 /**
  * CPUState:
  * @cpu_index: CPU index (informative).

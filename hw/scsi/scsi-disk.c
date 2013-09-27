@@ -1560,6 +1560,15 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
         goto invalid_param_len;
     }
 
+    if (s->tray_open) {
+        scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
+        return;
+    }
+    if (bdrv_is_read_only(s->qdev.conf.bs)) {
+        scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
+        return;
+    }
+
     data = g_new0(UnmapCBData, 1);
     data->r = r;
     data->inbuf = &p[8];

@@ -165,6 +165,20 @@ int64_t cpu_get_ticks(void)
     }
 }
 
+static int64_t cpu_get_clock_locked(void)
+{
+    int64_t ti;
+
+    if (!timers_state.cpu_ticks_enabled) {
+        ti = timers_state.cpu_clock_offset;
+    } else {
+        ti = get_clock();
+        ti += timers_state.cpu_clock_offset;
+    }
+
+    return ti;
+}
+
 /* return the host CPU monotonic timer and handle stop/restart */
 int64_t cpu_get_clock(void)
 {
@@ -173,12 +187,7 @@ int64_t cpu_get_clock(void)
 
     do {
         start = seqlock_read_begin(&timers_state.vm_clock_seqlock);
-        if (!timers_state.cpu_ticks_enabled) {
-            ti = timers_state.cpu_clock_offset;
-        } else {
-            ti = get_clock();
-            ti += timers_state.cpu_clock_offset;
-        }
+        ti = cpu_get_clock_locked();
     } while (seqlock_read_retry(&timers_state.vm_clock_seqlock, start));
 
     return ti;
@@ -209,7 +218,7 @@ void cpu_disable_ticks(void)
     seqlock_write_lock(&timers_state.vm_clock_seqlock);
     if (timers_state.cpu_ticks_enabled) {
         timers_state.cpu_ticks_offset = cpu_get_ticks();
-        timers_state.cpu_clock_offset = cpu_get_clock();
+        timers_state.cpu_clock_offset = cpu_get_clock_locked();
         timers_state.cpu_ticks_enabled = 0;
     }
     seqlock_write_unlock(&timers_state.vm_clock_seqlock);

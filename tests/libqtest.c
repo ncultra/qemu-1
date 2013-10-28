@@ -129,11 +129,12 @@ QTestState *qtest_init(const char *extra_args)
     if (pid == 0) {
         command = g_strdup_printf("%s "
                                   "-qtest unix:%s,nowait "
-                                  "-qtest-log /dev/null "
+                                  "-qtest-log %s "
                                   "-qmp unix:%s,nowait "
                                   "-pidfile %s "
                                   "-machine accel=qtest "
                                   "%s", qemu_binary, s->socket_path,
+                                  getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
                                   s->qmp_socket_path, pid_file,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
@@ -295,6 +296,7 @@ bool qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
     bool has_reply = false;
     int nesting = 0;
+    int log = getenv("QTEST_LOG") != NULL;
 
     /* Send QMP request */
     socket_sendf(s->qmp_fd, fmt, ap);
@@ -314,6 +316,9 @@ bool qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
             exit(1);
         }
 
+        if (log) {
+            len = write(2, &c, 1);
+        }
         switch (c) {
         case '{':
             nesting++;

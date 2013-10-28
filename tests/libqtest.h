@@ -48,9 +48,10 @@ void qtest_quit(QTestState *s);
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu
  *
- * Sends a QMP message to QEMU
+ * Sends a QMP message to QEMU.  Returns true if there
+ * was a reply.
  */
-void qtest_qmp(QTestState *s, const char *fmt, ...);
+bool qtest_qmp(QTestState *s, const char *fmt, ...);
 
 /**
  * qtest_qmpv:
@@ -58,9 +59,10 @@ void qtest_qmp(QTestState *s, const char *fmt, ...);
  * @fmt: QMP message to send to QEMU
  * @ap: QMP message arguments
  *
- * Sends a QMP message to QEMU.
+ * Sends a QMP message to QEMU.  Returns true if there
+ * was a reply.
  */
-void qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
+bool qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 
 /**
  * qtest_get_irq:
@@ -336,13 +338,16 @@ static inline void qtest_end(void)
  *
  * Sends a QMP message to QEMU
  */
-static inline void qmp(const char *fmt, ...)
+static inline bool qmp(const char *fmt, ...)
 {
     va_list ap;
+    bool has_reply;
 
     va_start(ap, fmt);
-    qtest_qmpv(global_qtest, fmt, ap);
+    has_reply = qtest_qmpv(global_qtest, fmt, ap);
     va_end(ap);
+
+    return has_reply;
 }
 
 /**

@@ -291,7 +291,7 @@ redo:
     return words;
 }
 
-void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+bool qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
     bool has_reply = false;
     int nesting = 0;
@@ -324,15 +324,19 @@ void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
             break;
         }
     }
+    return has_reply;
 }
 
-void qtest_qmp(QTestState *s, const char *fmt, ...)
+bool qtest_qmp(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
+    bool has_reply;
 
     va_start(ap, fmt);
-    qtest_qmpv(s, fmt, ap);
+    has_reply = qtest_qmpv(s, fmt, ap);
     va_end(ap);
+
+    return has_reply;
 }
 
 const char *qtest_get_arch(void)

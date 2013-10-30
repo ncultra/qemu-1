@@ -501,6 +501,8 @@ static void ide_rw_error(IDEState *s) {
     ide_set_irq(s->bus);
 }
 
+static void ide_sector_read(IDEState *s);
+
 static void ide_sector_read_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
@@ -531,7 +533,7 @@ static void ide_sector_read_cb(void *opaque, int ret)
     s->nsector -= n;
 }
 
-void ide_sector_read(IDEState *s)
+static void ide_sector_read(IDEState *s)
 {
     int64_t sector_num;
     int n;
@@ -618,7 +620,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     return action != BDRV_ACTION_IGNORE;
 }
 
-void ide_dma_cb(void *opaque, int ret)
+static void ide_dma_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
     int n;
@@ -735,6 +737,8 @@ void ide_start_dma(IDEState *s, BlockDriverCompletionFunc *cb)
     }
 }
 
+static void ide_sector_write(IDEState *s);
+
 static void ide_sector_write_timer_cb(void *opaque)
 {
     IDEState *s = opaque;
@@ -789,7 +793,7 @@ static void ide_sector_write_cb(void *opaque, int ret)
     }
 }
 
-void ide_sector_write(IDEState *s)
+static void ide_sector_write(IDEState *s)
 {
     int64_t sector_num;
     int n;
@@ -830,7 +834,7 @@ static void ide_flush_cb(void *opaque, int ret)
     ide_set_irq(s->bus);
 }
 
-void ide_flush_cache(IDEState *s)
+static void ide_flush_cache(IDEState *s)
 {
     if (s->bs == NULL) {
         ide_flush_cb(s, 0);

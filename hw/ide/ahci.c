@@ -960,10 +960,6 @@ static int handle_cmd(AHCIState *s, int port, int slot)
 
         /* We're ready to process the command in FIS byte 2. */
         ide_exec_cmd(&s->dev[port].port, cmd_fis[2]);
-
-        if (s->dev[port].port.ifs[0].status & READY_STAT) {
-            ahci_write_fis_d2h(&s->dev[port], cmd_fis);
-        }
     }
 
 out:
@@ -1026,11 +1022,6 @@ out:
     }
 
     s->end_transfer_func(s);
-
-    if (!(s->status & DRQ_STAT)) {
-        /* done with DMA */
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
-    }
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
@@ -1092,11 +1083,11 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
     return 1;
 }
 
-static void ahci_async_cmd_done(IDEDMA *dma)
+static void ahci_cmd_done(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
 
-    DPRINTF(ad->port_no, "async cmd done\n");
+    DPRINTF(ad->port_no, "cmd done\n");
 
     /* update d2h status */
     ahci_write_fis_d2h(ad, NULL);
@@ -1118,7 +1109,7 @@ static const IDEDMAOps ahci_dma_ops = {
     .start_transfer = ahci_start_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
     .rw_buf = ahci_dma_rw_buf,
-    .async_cmd_done = ahci_async_cmd_done,
+    .cmd_done = ahci_cmd_done,
 };
 
 void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)

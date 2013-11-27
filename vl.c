@@ -478,6 +478,20 @@ static QemuOptsList qemu_msg_opts = {
     },
 };
 
+static QemuOptsList qemu_mem_opts = {
+    .name = "memory",
+    .implied_opt_name = "mem",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_mem_opts.head),
+    .merge_lists = true,
+    .desc = {
+        {
+            .name = "mem",
+            .type = QEMU_OPT_SIZE,
+        },
+        { /* end of list */ }
+    },
+};
+
 /**
  * Get machine options
  *
@@ -2718,6 +2732,7 @@ int main(int argc, char **argv, char **envp)
     };
     const char *trace_events = NULL;
     const char *trace_file = NULL;
+    const ram_addr_t default_ram_size = (ram_addr_t)DEFAULT_RAM_SIZE * 1024 * 1024;
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
@@ -2758,6 +2773,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_realtime_opts);
     qemu_add_opts(&qemu_msg_opts);
     qemu_add_opts(&qemu_numa_opts);
+    qemu_add_opts(&qemu_mem_opts);
 
     runstate_init();
 
@@ -2773,7 +2789,7 @@ int main(int argc, char **argv, char **envp)
     module_call_init(MODULE_INIT_MACHINE);
     machine = find_default_machine();
     cpu_model = NULL;
-    ram_size = 0;
+    ram_size = default_ram_size;
     snapshot = 0;
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
@@ -3062,21 +3078,52 @@ int main(int argc, char **argv, char **envp)
                 version();
                 exit(0);
                 break;
-            case QEMU_OPTION_m: {
-                int64_t value;
+            case QEMU_OPTION_m:
+            case QEMU_OPTION_memory: {
                 uint64_t sz;
-                char *end;
+                const char *mem_str;
 
-                value = strtosz(optarg, &end);
-                if (value < 0 || *end) {
-                    fprintf(stderr, "qemu: invalid ram size: %s\n", optarg);
-                    exit(1);
+                opts = qemu_opts_parse(qemu_find_opts("memory"),
+                                       optarg, 1);
+                if (!opts) {
+                    exit(EXIT_FAILURE);
                 }
-                sz = QEMU_ALIGN_UP((uint64_t)value, 8192);
+
+                mem_str = qemu_opt_get(opts, "mem");
+                if (!mem_str) {
+                    fprintf(stderr, "qemu: invalid -m option, missing "
+                            "'mem' option\n");
+                    exit(EXIT_FAILURE);
+                }
+                if (!*mem_str) {
+                    fprintf(stderr, "qemu: missing 'mem' option value\n");
+                    exit(EXIT_FAILURE);
+                }
+
+                sz = qemu_opt_get_size(opts, "mem", ram_size);
+
+                /* Fix up legacy suffix-less format */
+                if (g_ascii_isdigit(mem_str[strlen(mem_str) - 1])) {
+                    uint64_t overflow_check = sz;
+
+                    sz <<= 20;
+                    if ((sz >> 20) != overflow_check) {
+                        fprintf(stderr, "qemu: too large 'mem' option "
+                                "value\n");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+                /* backward compatibility behaviour for case "-m 0" */
+                if (sz == 0) {
+                    sz = default_ram_size;
+                }
+
+                sz = QEMU_ALIGN_UP(sz, 8192);
                 ram_size = sz;
                 if (ram_size != sz) {
                     fprintf(stderr, "qemu: ram size too large\n");
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
                 break;
             }
@@ -3921,10 +3968,8 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    /* init the memory */
-    if (ram_size == 0) {
-        ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
-    }
+    /* store value for the future use */
+    qemu_opt_set_number(qemu_find_opts_singleton("memory"), "mem", ram_size);
 
     if (qemu_opts_foreach(qemu_find_opts("device"), device_help_func, NULL, 0)
         != 0) {

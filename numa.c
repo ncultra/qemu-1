@@ -127,6 +127,7 @@ void numa_add(const char *optarg)
 void set_numa_nodes(void)
 {
     if (nb_numa_nodes > 0) {
+        uint64_t numa_total;
         int i;
 
         if (nb_numa_nodes > MAX_NODES) {
@@ -152,6 +153,16 @@ void set_numa_nodes(void)
                 usedmem += node_mem[i];
             }
             node_mem[i] = ram_size - usedmem;
+        }
+
+        numa_total = 0;
+        for (i = 0; i < nb_numa_nodes; i++) {
+            numa_total += node_mem[i];
+        }
+        if (numa_total != ram_size) {
+            fprintf(stderr, "qemu: numa nodes total memory size "
+                            "should equal to ram_size\n");
+            exit(1);
         }
 
         for (i = 0; i < nb_numa_nodes; i++) {

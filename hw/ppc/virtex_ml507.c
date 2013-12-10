@@ -85,9 +85,7 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
     tlb->PID = 0;
 }
 
-static PowerPCCPU *ppc440_init_xilinx(ram_addr_t *ram_size,
-                                      int do_init,
-                                      const char *cpu_model,
+static PowerPCCPU *ppc440_init_xilinx(const char *cpu_model,
                                       uint32_t sysclk)
 {
     PowerPCCPU *cpu;
@@ -203,7 +201,7 @@ static void virtex_init(QEMUMachineInitArgs *args)
         cpu_model = "440-Xilinx";
     }
 
-    cpu = ppc440_init_xilinx(&ram_size, 1, cpu_model, 400000000);
+    cpu = ppc440_init_xilinx(cpu_model, 400000000);
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
 

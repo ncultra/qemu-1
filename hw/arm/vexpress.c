@@ -156,8 +156,7 @@ static hwaddr motherboard_aseries_map[] = {
 typedef struct VEDBoardInfo VEDBoardInfo;
 
 typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
-                          ram_addr_t ram_size,
-                          const char *cpu_model,
+                          QEMUMachineInitArgs *args,
                           qemu_irq *pic);
 
 struct VEDBoardInfo {
@@ -174,10 +173,11 @@ struct VEDBoardInfo {
 };
 
 static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
-                                  ram_addr_t ram_size,
-                                  const char *cpu_model,
+                                  QEMUMachineInitArgs *args,
                                   qemu_irq *pic)
 {
+    const char *cpu_model = args->cpu_model;
+    ram_addr_t ram_size = args->ram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
@@ -292,11 +292,12 @@ static VEDBoardInfo a9_daughterboard = {
 };
 
 static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
-                                   ram_addr_t ram_size,
-                                   const char *cpu_model,
+                                   QEMUMachineInitArgs *args,
                                    qemu_irq *pic)
 {
     int n;
+    const char *cpu_model = args->cpu_model;
+    ram_addr_t ram_size = args->ram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
@@ -527,7 +528,7 @@ static void vexpress_common_init(VEDBoardInfo *daughterboard,
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
 
-    daughterboard->init(daughterboard, args->ram_size, args->cpu_model, pic);
+    daughterboard->init(daughterboard, args, pic);
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.

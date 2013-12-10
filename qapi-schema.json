@@ -4544,10 +4544,16 @@
 # @mem: #optional memory size of this node (equally divide total memory among
 #        nodes if omitted)
 #
+# @memdev: #optional memory backend object.  If specified for one node,
+#          it must be specified for all nodes.
+#
+# @mem: #optional memory size of this node; mutually exclusive with @memdev.
+#
 # Since: 2.0
 ##
 { 'type': 'NumaNodeOptions',
   'data': {
    '*nodeid': 'uint16',
    '*cpus':   ['uint16'],
-   '*mem':    'size' }}
+   '*mem':    'size',
+   '*memdev': 'str' }}

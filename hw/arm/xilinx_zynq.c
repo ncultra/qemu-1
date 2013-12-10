@@ -145,7 +145,8 @@ static void zynq_init(QEMUMachineInitArgs *args)
 
     /* max 2GB ram */
     if (ram_size > 0x80000000) {
-        ram_size = 0x80000000;
+        fprintf(stderr, "zynq: cannot model more than 2GB RAM\n");
+        exit(1);
     }
 
     /* DDR remapped to address zero.  */

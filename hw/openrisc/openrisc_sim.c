@@ -114,8 +114,7 @@ static void openrisc_sim_init(QEMUMachineInitArgs *args)
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "openrisc.ram", ram_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "openrisc.ram", args);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
     cpu_openrisc_pic_init(cpu);

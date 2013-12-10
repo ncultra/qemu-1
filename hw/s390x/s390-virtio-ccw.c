@@ -92,7 +92,7 @@ static void ccw_init(QEMUMachineInitArgs *args)
     my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
 
     /* let's propagate the changed ram size into the global variable. */
-    ram_size = my_ram_size;
+    ram_size = args->ram_size = my_ram_size;
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();
@@ -104,8 +104,7 @@ static void ccw_init(QEMUMachineInitArgs *args)
     virtio_ccw_register_hcalls();
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "s390.ram", args);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate storage keys */

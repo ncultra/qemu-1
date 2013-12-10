@@ -69,13 +69,12 @@ static void puv3_soc_init(CPUUniCore32State *env)
     memory_region_add_subregion(get_system_memory(), PUV3_PS2_BASE, i8042);
 }
 
-static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)
+static void puv3_board_init(CPUUniCore32State *env, QEMUMachineInitArgs *args)
 {
     MemoryRegion *ram_memory = g_new(MemoryRegion, 1);
 
     /* SDRAM at address zero.  */
-    memory_region_init_ram(ram_memory, NULL, "puv3.ram", ram_size);
-    vmstate_register_ram_global(ram_memory);
+    memory_region_allocate_system_memory(ram, NULL, "puv3.ram", args);
     memory_region_add_subregion(get_system_memory(), 0, ram_memory);
 }
 
@@ -103,7 +102,6 @@ static void puv3_load_kernel(const char *kernel_filename)
 
 static void puv3_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
     const char *initrd_filename = args->initrd_filename;
@@ -123,7 +121,7 @@ static void puv3_init(QEMUMachineInitArgs *args)
     }
 
     puv3_soc_init(env);
-    puv3_board_init(env, ram_size);
+    puv3_board_init(env, args);
     puv3_load_kernel(kernel_filename);
 }
 

@@ -85,8 +85,7 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
     vmstate_register_ram_global(phys_lmb_bram);
     memory_region_add_subregion(sysmem, 0x00000000, phys_lmb_bram);
 
-    memory_region_init_ram(phys_ram, NULL, "petalogix_s3adsp1800.ram", ram_size);
-    vmstate_register_ram_global(phys_ram);
+    memory_region_allocate_system_memory(phys_ram, NULL, "petalogix_s3adsp1800.ram", args);
     memory_region_add_subregion(sysmem, ddr_base, phys_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);

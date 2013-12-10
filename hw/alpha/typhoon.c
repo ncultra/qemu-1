@@ -806,7 +806,7 @@ static void typhoon_alarm_timer(void *opaque)
     cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
-PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
+PCIBus *typhoon_init(QEMUMachineInitArgs *args, ISABus **isa_bus,
                      qemu_irq *p_rtc_irq,
                      AlphaCPU *cpus[4], pci_map_irq_fn sys_map_irq)
 {
@@ -843,8 +843,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
 
     /* Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
        but the address space hole reserved at this point is 8TB.  */
-    memory_region_init_ram(&s->ram_region, OBJECT(s), "ram", ram_size);
-    vmstate_register_ram_global(&s->ram_region);
+    memory_region_allocate_system_memory(&s->ram_region, OBJECT(s), "ram", args);
     memory_region_add_subregion(addr_space, 0, &s->ram_region);
 
     /* TIGbus, 0x801.0000.0000, 1GB.  */

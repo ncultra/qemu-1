@@ -244,7 +244,7 @@ static void s390_init(QEMUMachineInitArgs *args)
     my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
 
     /* let's propagate the changed ram size into the global variable. */
-    ram_size = my_ram_size;
+    ram_size = args->ram_size = my_ram_size;
 
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&my_ram_size);
@@ -256,8 +256,7 @@ static void s390_init(QEMUMachineInitArgs *args)
     s390_virtio_register_hcalls();
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "s390.ram", args);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* clear virtio region */

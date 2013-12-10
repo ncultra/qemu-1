@@ -505,8 +505,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     }
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "ppc_prep.ram", ram_size);
-    vmstate_register_ram_global(ram);
+    memory_region_allocate_system_memory(ram, NULL, "ppc_prep.ram", args);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */

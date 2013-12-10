@@ -70,7 +70,7 @@ static void clipper_init(QEMUMachineInitArgs *args)
     cpus[0]->env.trap_arg2 = smp_cpus;
 
     /* Init the chipset.  */
-    pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
+    pci_bus = typhoon_init(args, &isa_bus, &rtc_irq, cpus,
                            clipper_pci_map_irq);
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */

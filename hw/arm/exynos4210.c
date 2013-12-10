@@ -259,7 +259,9 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     memory_region_add_subregion(system_mem, EXYNOS4210_IRAM_BASE_ADDR,
                                 &s->iram_mem);
 
-    /* DRAM */
+    /* DRAM.  TODO: use memory_region_allocate_system_memory and then add
+     * aliases. This would break savevm/loadvm.
+     */
     mem_size = ram_size;
     if (mem_size > EXYNOS4210_DRAM_MAX_SIZE) {
         memory_region_init_ram(&s->dram1_mem, NULL, "exynos4210.dram1",

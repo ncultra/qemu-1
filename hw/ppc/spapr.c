@@ -1217,7 +1217,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         qemu_register_reset(spapr_cpu_reset, cpu);
     }
 
-    /* allocate RAM */
+    /* allocate RAM (FIXME: use memory_region_allocate_system_memory) */
     spapr->ram_limit = ram_size;
     if (spapr->ram_limit > rma_alloc_size) {
         ram_addr_t nonrma_base = rma_alloc_size;

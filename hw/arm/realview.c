@@ -108,6 +108,9 @@ static void realview_init(QEMUMachineInitArgs *args,
         proc_id = 0x02000000;
     }
 
+    /* TODO: use memory_region_allocate_system_memory and then add aliases.
+     * This would break savevm/loadvm.
+     */
     if (is_pb && ram_size > 0x20000000) {
         /* Core tile RAM.  */
         low_ram_size = ram_size - 0x20000000;

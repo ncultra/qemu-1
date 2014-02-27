@@ -29,6 +29,7 @@
 #include "hw/hw.h"
 
 #include "qemu/timer.h"
+#include "qemu/rcu_queue.h"
 #ifdef CONFIG_POSIX
 #include <pthread.h>
 #endif
@@ -45,12 +46,10 @@
 /* timers */
 
 typedef struct QEMUClock {
-    /* We rely on BQL to protect the timerlists */
     QLIST_HEAD(, QEMUTimerList) timerlists;
 
     NotifierList reset_notifiers;
     int64_t last;
-
     QEMUClockType type;
     bool enabled;
 
@@ -75,6 +74,7 @@ struct QEMUTimerList {
     QLIST_ENTRY(QEMUTimerList) list;
     QEMUTimerListNotifyCB *notify_cb;
     void *notify_opaque;
+    QemuEvent timers_done_ev;
 };
 
 /**
@@ -87,6 +87,7 @@ struct QEMUTimerList {
  */
 static inline QEMUClock *qemu_clock_ptr(QEMUClockType type)
 {
+    smp_rmb();
     return &qemu_clocks[type];
 }
 
@@ -148,13 +149,6 @@ void qemu_clock_notify(QEMUClockType type)
     }
 }
 
-/* Disabling the clock will wait for related timerlists to stop
- * executing qemu_run_timers.  Thus, this functions should not
- * be used from the callback of a timer that is based on @clock.
- * Doing so would cause a deadlock.
- *
- * Caller should hold BQL.
- */
 void qemu_clock_enable(QEMUClockType type, bool enabled)
 {
     QEMUClock *clock = qemu_clock_ptr(type);
@@ -172,7 +166,7 @@ void qemu_clock_enable(QEMUClockType type, bool enabled)
 
 bool timerlist_has_timers(QEMUTimerList *timer_list)
 {
-    return !!timer_list->active_timers;
+    return !!atomic_rcu_read(&timer_list->active_timers);
 }
 
 bool qemu_clock_has_timers(QEMUClockType type)
@@ -184,16 +178,17 @@ bool qemu_clock_has_timers(QEMUClockType type)
 bool timerlist_expired(QEMUTimerList *timer_list)
 {
     int64_t expire_time;
+    bool ret;
 
-    qemu_mutex_lock(&timer_list->active_timers_lock);
-    if (!timer_list->active_timers) {
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
+    rcu_read_lock();
+    if (!atomic_rcu_read(&timer_list->active_timers)) {
+        rcu_read_unlock();
         return false;
     }
     expire_time = timer_list->active_timers->expire_time;
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
-
-    return expire_time < qemu_clock_get_ns(timer_list->clock->type);
+    ret = (expire_time < qemu_clock_get_ns(timer_list->clock->type));
+    rcu_read_unlock();
+    return ret;
 }
 
 bool qemu_clock_expired(QEMUClockType type)
@@ -220,16 +215,16 @@ int64_t timerlist_deadline_ns(QEMUTimerList *timer_list)
      * value but ->notify_cb() is called when the deadline changes.  Therefore
      * the caller should notice the change and there is no race condition.
      */
-    qemu_mutex_lock(&timer_list->active_timers_lock);
-    if (!timer_list->active_timers) {
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
+
+    rcu_read_lock();
+    if (!atomic_rcu_read(&timer_list->active_timers)) {
+        rcu_read_unlock();
         return -1;
     }
     expire_time = timer_list->active_timers->expire_time;
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
-
     delta = expire_time - qemu_clock_get_ns(timer_list->clock->type);
 
+    rcu_read_unlock();
     if (delta <= 0) {
         return 0;
     }
@@ -332,10 +327,17 @@ void timer_init(QEMUTimer *ts,
     ts->expire_time = -1;
 }
 
-void timer_free(QEMUTimer *ts)
+static void reclaim_timer(struct rcu_head *rcu)
 {
+    QEMUTimer *ts = container_of(rcu, QEMUTimer, rcu);
     g_free(ts);
 }
+
+void timer_free(QEMUTimer *ts)
+{
+    call_rcu1(&ts->rcu, reclaim_timer);
+}
+
 
 static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
 {
@@ -344,6 +346,8 @@ static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
     ts->expire_time = -1;
     pt = &timer_list->active_timers;
     for(;;) {
+        /* caller's lock causes cache updates, so we don't need to use */
+        /* atomic_rcu_read or atomic_rcu_set */
         t = *pt;
         if (!t)
             break;
@@ -372,7 +376,6 @@ static bool timer_mod_ns_locked(QEMUTimerList *timer_list,
     ts->expire_time = MAX(expire_time, 0);
     ts->next = *pt;
     *pt = ts;
-
     return pt == &timer_list->active_timers;
 }
 
@@ -416,16 +419,14 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
 void timer_mod_anticipate_ns(QEMUTimer *ts, int64_t expire_time)
 {
     QEMUTimerList *timer_list = ts->timer_list;
-    bool rearm;
+    bool rearm = false;
 
     qemu_mutex_lock(&timer_list->active_timers_lock);
     if (ts->expire_time == -1 || ts->expire_time > expire_time) {
         if (ts->expire_time != -1) {
             timer_del_locked(timer_list, ts);
+            rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
         }
-        rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
-    } else {
-        rearm = false;
     }
     qemu_mutex_unlock(&timer_list->active_timers_lock);
 
@@ -461,12 +462,13 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     bool progress = false;
     QEMUTimerCB *cb;
     void *opaque;
+    bool enabled;
 
-    qemu_event_reset(&timer_list->timers_done_ev);
-    if (!timer_list->clock->enabled) {
-        goto out;
+    enabled = atomic_rcu_read(&timer_list->clock->enabled);
+    if (!enabled) {
+        return progress;
     }
-
+    qemu_event_reset(&timer_list->timers_done_ev);
     current_time = qemu_clock_get_ns(timer_list->clock->type);
     for(;;) {
         qemu_mutex_lock(&timer_list->active_timers_lock);
@@ -482,14 +484,13 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         ts->expire_time = -1;
         cb = ts->cb;
         opaque = ts->opaque;
+        rcu_read_lock();
         qemu_mutex_unlock(&timer_list->active_timers_lock);
-
         /* run the callback (the timer list can be modified) */
         cb(opaque);
+        rcu_read_unlock();
         progress = true;
     }
-
-out:
     qemu_event_set(&timer_list->timers_done_ev);
     return progress;
 }

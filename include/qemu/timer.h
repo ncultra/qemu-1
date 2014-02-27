@@ -5,8 +5,15 @@
 #include "qemu-common.h"
 #include "qemu/notify.h"
 
-/* timers */
+#ifdef __GNUC__
+#ifndef __ATOMIC_RELEASE
+#define __ATOMIC_RELEASE
+#endif
+#endif
+#include "qemu/atomic.h"
+#include "qemu/rcu.h"
 
+/* timers */
 #define SCALE_MS 1000000
 #define SCALE_US 1000
 #define SCALE_NS 1
@@ -61,6 +68,7 @@ struct QEMUTimer {
     void *opaque;
     QEMUTimer *next;
     int scale;
+    struct rcu_head rcu;
 };
 
 extern QEMUTimerListGroup main_loop_tlg;
@@ -189,12 +197,6 @@ void qemu_clock_notify(QEMUClockType type);
  * @enabled: true to enable, false to disable
  *
  * Enable or disable a clock
- * Disabling the clock will wait for related timerlists to stop
- * executing qemu_run_timers.  Thus, this functions should not
- * be used from the callback of a timer that is based on @clock.
- * Doing so would cause a deadlock.
- *
- * Caller should hold BQL.
  */
 void qemu_clock_enable(QEMUClockType type, bool enabled);
 
@@ -543,7 +545,6 @@ void timer_del(QEMUTimer *ts);
  * freed while this function is running.
  */
 void timer_mod_ns(QEMUTimer *ts, int64_t expire_time);
-
 /**
  * timer_mod_anticipate_ns:
  * @ts: the timer
@@ -685,9 +686,7 @@ static inline int64_t qemu_soonest_timeout(int64_t timeout1, int64_t timeout2)
 void init_clocks(void);
 
 int64_t cpu_get_ticks(void);
-/* Caller must hold BQL */
 void cpu_enable_ticks(void);
-/* Caller must hold BQL */
 void cpu_disable_ticks(void);
 
 static inline int64_t get_ticks_per_sec(void)

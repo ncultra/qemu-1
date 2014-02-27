@@ -447,6 +447,11 @@ void configure_icount(const char *option)
         return;
     }
 
+    if (smp_cpus > 1) {
+        fprintf(stderr, "-icount is not allowed with SMP guests\n");
+        exit(1);
+    }
+
     icount_warp_timer = timer_new_ns(QEMU_CLOCK_REALTIME,
                                           icount_warp_rt, NULL);
     if (strcmp(option, "auto") != 0) {
